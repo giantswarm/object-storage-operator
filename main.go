@@ -30,10 +30,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	objectstoragev1alpha1 "github.io/giantswarm/object-storage-operator/api/v1alpha1"
-	"github.io/giantswarm/object-storage-operator/internal/controller"
+	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
+	"github.com/giantswarm/object-storage-operator/internal/controller"
+	"github.com/giantswarm/object-storage-operator/internal/pkg/managementcluster"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -45,7 +45,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(objectstoragev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -53,11 +53,17 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
+	var managementCluster = managementcluster.ManagementCluster{}
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	// Get all management cluster specific configs.
+	flag.StringVar(&managementCluster.Name, "management-cluster-name", "", "Management cluster CR name.")
+	flag.StringVar(&managementCluster.Namespace, "management-cluster-namespace", "", "Management cluster CR namespace.")
+	flag.StringVar(&managementCluster.Provider, "management-cluster-provider", "", "Management cluster provider.")
+	flag.StringVar(&managementCluster.Region, "management-cluster-region", "", "Management cluster region.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -68,10 +74,10 @@ func main() {
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
-		Metrics:                metricsserver.Options{BindAddress: metricsAddr},
+		MetricsBindAddress:     metricsAddr,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "8d3995f7.giantswarm.io",
+		LeaderElectionID:       "objectstorage.giantswarm.io",
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
@@ -90,8 +96,9 @@ func main() {
 	}
 
 	if err = (&controller.BucketReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:            mgr.GetClient(),
+		Scheme:            mgr.GetScheme(),
+		ManagementCluster: managementCluster,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Bucket")
 		os.Exit(1)

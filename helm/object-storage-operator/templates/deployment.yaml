@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    {{- include "labels.common" . | nindent 4 }}
+  name: {{ include "resource.default.name" . }}
+  namespace: {{ include "resource.default.namespace" . }}
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      {{- include "labels.selector" . | nindent 6 }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        releaseRevision: {{ .Release.Revision | quote }}
+      labels:
+        {{- include "labels.common" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "resource.default.name"  . }}
+      securityContext:
+        {{- with .Values.podSecurityContext }}
+        {{- . | toYaml | nindent 8 }}
+        {{- end }}
+      containers:
+      - name: {{ include "name" . }}
+        image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ default .Chart.Version .Values.image.tag }}"
+        args:
+          - --leader-elect
+          - --management-cluster-namespace={{ .Values.managementCluster.namespace }}
+          - --management-cluster-name={{ .Values.managementCluster.name  }}
+          - --management-cluster-provider={{ .Values.managementCluster.provider.kind  }}
+          - --management-cluster-region={{ .Values.managementCluster.region  }}
+        {{ if eq .Values.managementCluster.provider.kind "capa" -}}
+        env:
+          - name: AWS_SHARED_CREDENTIALS_FILE
+            value: /home/.aws/credentials
+        {{- end }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 30
+          timeoutSeconds: 1
+        securityContext:
+          {{- with .Values.containerSecurityContext }}
+          {{- . | toYaml | nindent 10 }}
+          {{- end }}
+        resources:
+          {{- .Values.resources | toYaml | nindent 10 }}
+        {{ if eq .Values.managementCluster.provider.kind "capa" -}}
+        volumeMounts:
+          - mountPath: /home/.aws
+            name: credentials
+        {{- end }}
+      {{ if eq .Values.managementCluster.provider.kind "capa" -}}
+      volumes:
+      - name: credentials
+        secret:
+          secretName: {{ include "resource.default.name" . }}-aws-credentials
+      {{- end -}}

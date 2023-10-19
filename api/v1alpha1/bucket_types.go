@@ -20,22 +20,51 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+const (
+	BucketFinalizer = "bucket.objectstorage.giantswarm.io"
+)
 
 // BucketSpec defines the desired state of Bucket
 type BucketSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Name is the name of the bucket to create.
+	Name string `json:"name"`
 
-	// Foo is an example field of Bucket. Edit bucket_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// ACL to put on the bucket to create.
+	// +optional
+	Acl *string `json:"acl,omitempty"`
+	// Expiration policy on the objects in the bucket.
+	// +optional
+	ExpirationPolicy *BucketExpirationPolicy `json:"expirationPolicy,omitempty"`
+
+	// Tags to add to the bucket.
+	// +optional
+	Tags []BucketTag `json:"tags,omitempty"`
+}
+
+// BucketExpirationPolicy defines the expiration policy on all objects contained in the bucket
+type BucketExpirationPolicy struct {
+	// Days sets a number of days before the data expires
+	Days int32 `json:"days"`
+}
+
+// BucketTag defines the type for bucket tags
+type BucketTag struct {
+	// Key is the key of the bucket tag to add to the bucket.
+	Key string `json:"key"`
+
+	// Key is the key of the bucket tag to add to the bucket.
+	Value string `json:"value"`
 }
 
 // BucketStatus defines the observed state of Bucket
 type BucketStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// BucketReady is a boolean condition to reflect the successful creation
+	// of a bucket.
+	BucketReady bool `json:"bucketReady,omitempty"`
+
+	// BucketID is the unique id of the bucket.
+	// +optional
+	BucketID string `json:"bucketID,omitempty"`
 }
 
 //+kubebuilder:object:root=true

@@ -18,19 +18,26 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/pkg/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	objectstoragev1alpha1 "github.io/giantswarm/object-storage-operator/api/v1alpha1"
+	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
+	managementcluster "github.com/giantswarm/object-storage-operator/internal/pkg/managementcluster"
+	"github.com/giantswarm/object-storage-operator/internal/pkg/reconcilers/bucket"
+	"github.com/giantswarm/object-storage-operator/internal/pkg/reconcilers/bucket/capa"
 )
 
 // BucketReconciler reconciles a Bucket object
 type BucketReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	*runtime.Scheme
+	managementcluster.ManagementCluster
 }
 
 //+kubebuilder:rbac:groups=objectstorage.giantswarm.io,resources=buckets,verbs=get;list;watch;create;update;patch;delete
@@ -39,24 +46,46 @@ type BucketReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Bucket object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.16.0/pkg/reconcile
 func (r *BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	logger := log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	logger.Info("Started reconciling Bucket", "namespace", req.Namespace, "name", req.Name)
+	defer logger.Info("Finished reconciling Bucket", "namespace", req.Namespace, "name", req.Name)
 
-	return ctrl.Result{}, nil
+	// Get the bucket that we are reconciling
+	reconciledBucket := &v1alpha1.Bucket{}
+	err := r.Client.Get(ctx, req.NamespacedName, reconciledBucket)
+	if apierrors.IsNotFound(err) {
+		logger.Info("Bucket no longer exists")
+		return ctrl.Result{}, nil
+	} else if err != nil {
+		return ctrl.Result{}, errors.WithStack(err)
+	}
+
+	// Create the correct reconciler based on the provider
+	var bucketReconciler bucket.BucketReconciler
+	switch r.ManagementCluster.Provider {
+	case "capa":
+		bucketReconciler = capa.CAPABucketReconciler{
+			Client:            r.Client,
+			ManagementCluster: r.ManagementCluster,
+		}
+		if err != nil {
+			return ctrl.Result{}, errors.WithStack(err)
+		}
+	default:
+		return ctrl.Result{}, fmt.Errorf("unsupported provider %s", r.ManagementCluster.Provider)
+	}
+
+	return bucketReconciler.Reconcile(ctx, reconciledBucket)
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *BucketReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&objectstoragev1alpha1.Bucket{}).
+		For(&v1alpha1.Bucket{}).
 		Complete(r)
 }

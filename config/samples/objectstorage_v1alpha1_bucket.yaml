@@ -9,4 +9,4 @@ metadata:
     app.kubernetes.io/created-by: object-storage-operator
   name: bucket-sample
 spec:
-  # TODO(user): Add fields here
+  name: bucket-sample

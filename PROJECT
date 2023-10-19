@@ -6,7 +6,7 @@ domain: giantswarm.io
 layout:
 - go.kubebuilder.io/v4
 projectName: object-storage-operator
-repo: github.io/giantswarm/object-storage-operator
+repo: github.com/giantswarm/object-storage-operator
 resources:
 - api:
     crdVersion: v1
@@ -15,6 +15,6 @@ resources:
   domain: giantswarm.io
   group: objectstorage
   kind: Bucket
-  path: github.io/giantswarm/object-storage-operator/api/v1alpha1
+  path: github.com/giantswarm/object-storage-operator/api/v1alpha1
   version: v1alpha1
 version: "3"
