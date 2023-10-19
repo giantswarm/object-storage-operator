@@ -4,11 +4,11 @@ go 1.18
 
 require (
 	github.com/giantswarm/exporterkit v0.2.1
-	github.com/giantswarm/k8sclient/v5 v5.11.0
-	github.com/giantswarm/microendpoint v0.2.0
-	github.com/giantswarm/microerror v0.3.0
-	github.com/giantswarm/microkit v0.2.2
-	github.com/giantswarm/micrologger v0.5.0
+	github.com/giantswarm/k8sclient/v5 v5.12.0
+	github.com/giantswarm/microendpoint v0.3.0
+	github.com/giantswarm/microerror v0.4.0
+	github.com/giantswarm/microkit v0.3.0
+	github.com/giantswarm/micrologger v0.6.0
 	github.com/giantswarm/operatorkit/v5 v5.0.0
 	github.com/prometheus/client_golang v1.12.2
 	github.com/spf13/viper v1.7.1
@@ -106,5 +106,5 @@ replace (
 	github.com/nats-io/nats-server/v2 v2.1.2 => github.com/nats-io/nats-server/v2 v2.8.3
 	github.com/valyala/fasthttp v1.6.0 => github.com/valyala/fasthttp v1.37.0
 	go.mongodb.org/mongo-driver v1.1.2 => go.mongodb.org/mongo-driver v1.9.1
-	sigs.k8s.io/cluster-api => github.com/giantswarm/cluster-api v0.3.13-gs
+	sigs.k8s.io/cluster-api => github.com/giantswarm/cluster-api v0.4.8
 )
