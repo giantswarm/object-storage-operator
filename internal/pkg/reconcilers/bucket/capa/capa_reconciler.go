@@ -49,7 +49,7 @@ func (r CAPABucketReconciler) createS3Service(ctx context.Context) (*s3.Service,
 	}
 	if !found || clusterIdentityName == "" {
 		logger.Info("Missing identity, skipping")
-		return nil, errors.New("missing cluster identify")
+		return nil, errors.New("missing management cluster identify")
 	}
 
 	clusterIdentity := &unstructured.Unstructured{}
