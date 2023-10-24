@@ -74,7 +74,6 @@ func (r CAPABucketReconciler) createS3Service(ctx context.Context) (*s3.Service,
 		return nil, errors.WithStack(err)
 	}
 	if !found {
-		logger.Info("Missing role arn, skipping")
 		return nil, errors.New("missing role arn")
 	}
 
