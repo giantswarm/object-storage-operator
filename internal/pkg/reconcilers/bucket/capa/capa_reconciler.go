@@ -64,7 +64,7 @@ func (r CAPABucketReconciler) createS3Service(ctx context.Context) (*s3.Service,
 		Namespace: cluster.GetNamespace(),
 	}, clusterIdentity)
 	if err != nil {
-		logger.Error(err, "Missing management cluster identify CR")
+		logger.Error(err, "Missing management cluster identity AWSClusterRoleIdentity CR")
 		return nil, errors.WithStack(err)
 	}
 
