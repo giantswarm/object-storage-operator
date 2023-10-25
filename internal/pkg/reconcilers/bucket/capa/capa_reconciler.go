@@ -182,7 +182,8 @@ func (r CAPABucketReconciler) reconcileDelete(ctx context.Context, s3Service *s3
 	}
 
 	logger.Info("Bucket deleted")
+	originalBucket := bucket.DeepCopy()
 	// Bucket is deleted so remove the finalizer.
 	controllerutil.RemoveFinalizer(bucket, v1alpha1.BucketFinalizer)
-	return r.Client.Update(ctx, bucket)
+	return r.Client.Patch(ctx, bucket, client.MergeFrom(originalBucket))
 }

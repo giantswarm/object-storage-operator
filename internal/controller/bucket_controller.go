@@ -21,8 +21,6 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -36,7 +34,6 @@ import (
 // BucketReconciler reconciles a Bucket object
 type BucketReconciler struct {
 	client.Client
-	*runtime.Scheme
 	managementcluster.ManagementCluster
 }
 
@@ -45,7 +42,7 @@ type BucketReconciler struct {
 //+kubebuilder:rbac:groups=objectstorage.giantswarm.io,resources=buckets/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
+// move the current state of the bucket closer to the desired state.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.16.0/pkg/reconcile
@@ -58,11 +55,8 @@ func (r *BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	// Get the bucket that we are reconciling
 	reconciledBucket := &v1alpha1.Bucket{}
 	err := r.Client.Get(ctx, req.NamespacedName, reconciledBucket)
-	if apierrors.IsNotFound(err) {
-		logger.Info("Bucket no longer exists")
-		return ctrl.Result{}, nil
-	} else if err != nil {
-		return ctrl.Result{}, errors.WithStack(err)
+	if err != nil {
+		return ctrl.Result{}, errors.WithStack(client.IgnoreNotFound(err))
 	}
 
 	// Create the correct reconciler based on the provider

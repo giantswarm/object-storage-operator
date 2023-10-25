@@ -9,4 +9,10 @@ metadata:
     app.kubernetes.io/created-by: object-storage-operator
   name: bucket-sample
 spec:
-  name: bucket-sample
+  name: gs-test-object-storage-operator
+  acl: private
+  expirationPolicy:
+    days: 30
+  tags:
+  - key: installation
+    value: golem
