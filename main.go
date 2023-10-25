@@ -97,7 +97,6 @@ func main() {
 
 	if err = (&controller.BucketReconciler{
 		Client:            mgr.GetClient(),
-		Scheme:            mgr.GetScheme(),
 		ManagementCluster: managementCluster,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Bucket")

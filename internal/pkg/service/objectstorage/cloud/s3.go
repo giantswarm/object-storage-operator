@@ -1,4 +1,4 @@
-package s3
+package cloud
 
 import (
 	"context"
@@ -13,14 +13,15 @@ import (
 	"github.com/aws/smithy-go"
 
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
+	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage"
 )
 
-type Service struct {
+type S3ObjectStorageAdapter struct {
 	client      *s3.Client
 	cloudRegion string
 }
 
-func NewService(ctx context.Context, cloudRegion string, roleArn string) (*Service, error) {
+func NewS3Service(ctx context.Context, cloudRegion string, roleArn string) (objectstorage.ObjectStorageService, error) {
 	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(cloudRegion))
 	if err != nil {
 		return nil, err
@@ -31,11 +32,10 @@ func NewService(ctx context.Context, cloudRegion string, roleArn string) (*Servi
 	credentials := stscreds.NewAssumeRoleProvider(stsClient, roleArn)
 	cfg.Credentials = aws.NewCredentialsCache(credentials)
 
-	return &Service{s3.NewFromConfig(cfg), cloudRegion}, nil
+	return &S3ObjectStorageAdapter{s3.NewFromConfig(cfg), cloudRegion}, nil
 }
 
-// BucketExists checks whether a bucket exists in the current account.
-func (s Service) BucketExists(ctx context.Context, bucket *v1alpha1.Bucket) (bool, error) {
+func (s S3ObjectStorageAdapter) ExistsBucket(ctx context.Context, bucket *v1alpha1.Bucket) (bool, error) {
 	_, err := s.client.HeadBucket(ctx, &s3.HeadBucketInput{
 		Bucket: aws.String(bucket.Spec.Name),
 	})
@@ -54,7 +54,7 @@ func (s Service) BucketExists(ctx context.Context, bucket *v1alpha1.Bucket) (boo
 	return exists, err
 }
 
-func (s Service) CreateBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
+func (s S3ObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	_, err := s.client.CreateBucket(ctx, &s3.CreateBucketInput{
 		Bucket: aws.String(bucket.Spec.Name),
 		CreateBucketConfiguration: &types.CreateBucketConfiguration{
@@ -65,14 +65,33 @@ func (s Service) CreateBucket(ctx context.Context, bucket *v1alpha1.Bucket) erro
 	return err
 }
 
-func (s Service) DeleteBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
+func (s S3ObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	_, err := s.client.DeleteBucket(ctx, &s3.DeleteBucketInput{
 		Bucket: aws.String(bucket.Spec.Name),
 	})
 	return err
 }
 
-func (s Service) SetBucketACL(ctx context.Context, bucket *v1alpha1.Bucket) error {
+func (s S3ObjectStorageAdapter) ConfigureBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
+	var err error
+	if bucket.Spec.Acl != nil {
+		err = s.setBucketACL(ctx, bucket)
+		if err != nil {
+			return err
+		}
+	}
+
+	// If expiration is not set, we remove all lifecycle rules
+	err = s.setLifecycleRules(ctx, bucket)
+	if err != nil {
+		return err
+	}
+
+	err = s.setTags(ctx, bucket)
+	return err
+}
+
+func (s S3ObjectStorageAdapter) setBucketACL(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	acl := *bucket.Spec.Acl
 	_, err := s.client.PutBucketAcl(ctx, &s3.PutBucketAclInput{
 		Bucket: aws.String(bucket.Spec.Name),
@@ -81,7 +100,7 @@ func (s Service) SetBucketACL(ctx context.Context, bucket *v1alpha1.Bucket) erro
 	return err
 }
 
-func (s Service) SetLifecycleRules(ctx context.Context, bucket *v1alpha1.Bucket) error {
+func (s S3ObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	if bucket.Spec.ExpirationPolicy != nil {
 		enabledRuleStatus := types.ExpirationStatusEnabled
 		lifecycleConfiguration := types.BucketLifecycleConfiguration{
@@ -111,7 +130,7 @@ func (s Service) SetLifecycleRules(ctx context.Context, bucket *v1alpha1.Bucket)
 
 }
 
-func (s Service) SetTags(ctx context.Context, bucket *v1alpha1.Bucket) error {
+func (s S3ObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	if len(bucket.Spec.Tags) == 0 {
 		_, err := s.client.DeleteBucketTagging(ctx, &s3.DeleteBucketTaggingInput{
 			Bucket: aws.String(bucket.Spec.Name),
