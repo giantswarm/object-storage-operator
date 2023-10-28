@@ -34,6 +34,7 @@ import (
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
 	"github.com/giantswarm/object-storage-operator/internal/controller"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/managementcluster"
+	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -96,8 +97,9 @@ func main() {
 	}
 
 	if err = (&controller.BucketReconciler{
-		Client:            mgr.GetClient(),
-		ManagementCluster: managementCluster,
+		Client:                      mgr.GetClient(),
+		ObjectStorageServiceFactory: objectstorage.New(),
+		ManagementCluster:           managementCluster,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Bucket")
 		os.Exit(1)

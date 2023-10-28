@@ -5,38 +5,26 @@ import (
 	"errors"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/aws/smithy-go"
 
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
-	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage"
 )
 
 type S3ObjectStorageAdapter struct {
-	client      *s3.Client
+	s3Client    *s3.Client
 	cloudRegion string
 }
 
-func NewS3Service(ctx context.Context, cloudRegion string, roleArn string) (objectstorage.ObjectStorageService, error) {
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(cloudRegion))
-	if err != nil {
-		return nil, err
+func NewS3Service(s3Client *s3.Client, cloudRegion string) S3ObjectStorageAdapter {
+	return S3ObjectStorageAdapter{
+		s3Client:    s3Client,
+		cloudRegion: cloudRegion,
 	}
-
-	// Assume role
-	stsClient := sts.NewFromConfig(cfg)
-	credentials := stscreds.NewAssumeRoleProvider(stsClient, roleArn)
-	cfg.Credentials = aws.NewCredentialsCache(credentials)
-
-	return &S3ObjectStorageAdapter{s3.NewFromConfig(cfg), cloudRegion}, nil
 }
-
 func (s S3ObjectStorageAdapter) ExistsBucket(ctx context.Context, bucket *v1alpha1.Bucket) (bool, error) {
-	_, err := s.client.HeadBucket(ctx, &s3.HeadBucketInput{
+	_, err := s.s3Client.HeadBucket(ctx, &s3.HeadBucketInput{
 		Bucket: aws.String(bucket.Spec.Name),
 	})
 	exists := true
@@ -55,18 +43,17 @@ func (s S3ObjectStorageAdapter) ExistsBucket(ctx context.Context, bucket *v1alph
 }
 
 func (s S3ObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
-	_, err := s.client.CreateBucket(ctx, &s3.CreateBucketInput{
+	_, err := s.s3Client.CreateBucket(ctx, &s3.CreateBucketInput{
 		Bucket: aws.String(bucket.Spec.Name),
 		CreateBucketConfiguration: &types.CreateBucketConfiguration{
 			LocationConstraint: types.BucketLocationConstraint(s.cloudRegion),
 		},
-		ObjectOwnership: types.ObjectOwnershipObjectWriter,
 	})
 	return err
 }
 
 func (s S3ObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
-	_, err := s.client.DeleteBucket(ctx, &s3.DeleteBucketInput{
+	_, err := s.s3Client.DeleteBucket(ctx, &s3.DeleteBucketInput{
 		Bucket: aws.String(bucket.Spec.Name),
 	})
 	return err
@@ -93,7 +80,7 @@ func (s S3ObjectStorageAdapter) ConfigureBucket(ctx context.Context, bucket *v1a
 
 func (s S3ObjectStorageAdapter) setBucketACL(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	acl := *bucket.Spec.Acl
-	_, err := s.client.PutBucketAcl(ctx, &s3.PutBucketAclInput{
+	_, err := s.s3Client.PutBucketAcl(ctx, &s3.PutBucketAclInput{
 		Bucket: aws.String(bucket.Spec.Name),
 		ACL:    types.BucketCannedACL(acl),
 	})
@@ -119,11 +106,11 @@ func (s S3ObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket *v
 			Bucket:                 aws.String(bucket.Spec.Name),
 			LifecycleConfiguration: &lifecycleConfiguration,
 		}
-		_, err := s.client.PutBucketLifecycleConfiguration(ctx, input)
+		_, err := s.s3Client.PutBucketLifecycleConfiguration(ctx, input)
 		return err
 	}
 
-	_, err := s.client.DeleteBucketLifecycle(ctx, &s3.DeleteBucketLifecycleInput{
+	_, err := s.s3Client.DeleteBucketLifecycle(ctx, &s3.DeleteBucketLifecycleInput{
 		Bucket: aws.String(bucket.Spec.Name),
 	})
 	return err
@@ -132,7 +119,7 @@ func (s S3ObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket *v
 
 func (s S3ObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	if len(bucket.Spec.Tags) == 0 {
-		_, err := s.client.DeleteBucketTagging(ctx, &s3.DeleteBucketTaggingInput{
+		_, err := s.s3Client.DeleteBucketTagging(ctx, &s3.DeleteBucketTaggingInput{
 			Bucket: aws.String(bucket.Spec.Name),
 		})
 		return err
@@ -150,7 +137,7 @@ func (s S3ObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1.Bu
 		}
 	}
 
-	_, err := s.client.PutBucketTagging(ctx, &s3.PutBucketTaggingInput{
+	_, err := s.s3Client.PutBucketTagging(ctx, &s3.PutBucketTaggingInput{
 		Bucket: aws.String(bucket.Spec.Name),
 		Tagging: &types.Tagging{
 			TagSet: tags,

@@ -18,7 +18,7 @@ test-unit: ginkgo generate fmt vet envtest ## Run unit tests
 .PHONY: test-integration
 test-integration: ginkgo start-localstack ## Run integration tests
 	sleep 4
-	AWS_ACCESS_KEY_ID="dummy" AWS_SECRET_ACCESS_KEY="dummy" AWS_ENDPOINT="http://localhost:4566" AWS_REGION="eu-central-1" $(GINKGO) -p --nodes 4 -r -randomize-all --randomize-suites --cover --coverpkg=github.com/aws-resolver-rules-operator/pkg/aws tests/integration
+	AWS_ACCESS_KEY_ID="dummy" AWS_SECRET_ACCESS_KEY="dummy" AWS_ENDPOINT="http://localhost:4566" AWS_REGION="eu-central-1" $(GINKGO) -p --nodes 4 -r -randomize-all --randomize-suites --cover --coverpkg=github.com/giantswarm/object-storage-operator/internal/pkg internal/pkg/tests/integration
 	$(MAKE) stop-localstack
 
 .PHONY: start-localstack

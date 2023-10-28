@@ -6,6 +6,7 @@ import (
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
 )
 
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . ObjectStorageService
 type ObjectStorageService interface {
 	// Configure all bucket related configurations (ACL, Tags, ...)
 	ConfigureBucket(ctx context.Context, bucket *v1alpha1.Bucket) error

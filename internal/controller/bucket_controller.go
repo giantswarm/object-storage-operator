@@ -31,12 +31,12 @@ import (
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
 	managementcluster "github.com/giantswarm/object-storage-operator/internal/pkg/managementcluster"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage"
-	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage/cloud"
 )
 
 // BucketReconciler reconciles a Bucket object
 type BucketReconciler struct {
 	client.Client
+	objectstorage.ObjectStorageServiceFactory
 	managementcluster.ManagementCluster
 }
 
@@ -49,11 +49,11 @@ type BucketReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.16.0/pkg/reconcile
-func (r *BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	logger.Info("Started reconciling Bucket", "namespace", req.Namespace, "name", req.Name)
-	defer logger.Info("Finished reconciling Bucket", "namespace", req.Namespace, "name", req.Name)
+	logger.Info("Started reconciling Bucket")
+	defer logger.Info("Finished reconciling Bucket")
 
 	// Get the bucket that we are reconciling
 	bucket := &v1alpha1.Bucket{}
@@ -62,7 +62,7 @@ func (r *BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, errors.WithStack(client.IgnoreNotFound(err))
 	}
 
-	// Create the correct reconciler based on the provider
+	// Create the correct service implementation based on the provider
 	var service objectstorage.ObjectStorageService
 	switch r.ManagementCluster.Provider {
 	case "capa":
@@ -71,12 +71,12 @@ func (r *BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			return ctrl.Result{}, errors.WithStack(err)
 		}
 
-		service, err = cloud.NewS3Service(ctx, r.ManagementCluster.Region, roleArn)
+		service, err = r.ObjectStorageServiceFactory.NewS3Service(ctx, r.ManagementCluster.Region, roleArn)
 		if err != nil {
 			return ctrl.Result{}, errors.WithStack(err)
 		}
 	default:
-		return ctrl.Result{}, fmt.Errorf("unsupported provider %s", r.ManagementCluster.Provider)
+		return ctrl.Result{}, errors.New(fmt.Sprintf("unsupported provider %s", r.ManagementCluster.Provider))
 	}
 
 	// Handle deleted clusters
@@ -89,7 +89,7 @@ func (r *BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 }
 
 // reconcileCreate creates the s3 bucket.
-func (r *BucketReconciler) reconcileNormal(ctx context.Context, service objectstorage.ObjectStorageService, bucket *v1alpha1.Bucket) (ctrl.Result, error) {
+func (r BucketReconciler) reconcileNormal(ctx context.Context, service objectstorage.ObjectStorageService, bucket *v1alpha1.Bucket) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
 	originalBucket := bucket.DeepCopy()
@@ -126,25 +126,26 @@ func (r *BucketReconciler) reconcileNormal(ctx context.Context, service objectst
 		return ctrl.Result{}, errors.WithStack(err)
 	}
 
-	logger.Info("Bucket ready")
 	originalBucket = bucket.DeepCopy()
 	bucket.Status = v1alpha1.BucketStatus{
 		BucketID:    bucket.Spec.Name,
 		BucketReady: true,
 	}
-	if err := r.Client.Status().Patch(ctx, bucket, client.MergeFrom(originalBucket)); err != nil {
+
+	if err = r.Client.Status().Patch(ctx, bucket, client.MergeFrom(originalBucket)); err != nil {
 		return ctrl.Result{}, errors.WithStack(err)
 	}
+	logger.Info("Bucket ready")
 	return ctrl.Result{}, nil
 }
 
 // reconcileDelete deletes the s3 bucket.
-func (r *BucketReconciler) reconcileDelete(ctx context.Context, service objectstorage.ObjectStorageService, bucket *v1alpha1.Bucket) error {
+func (r BucketReconciler) reconcileDelete(ctx context.Context, service objectstorage.ObjectStorageService, bucket *v1alpha1.Bucket) error {
 	logger := log.FromContext(ctx)
 
 	logger.Info("Checking if bucket exists")
-	_, err := service.ExistsBucket(ctx, bucket)
-	if err == nil {
+	exists, err := service.ExistsBucket(ctx, bucket)
+	if err == nil && exists {
 		logger.Info("Bucket exists, deleting")
 		err = service.DeleteBucket(ctx, bucket)
 		if err != nil {
@@ -161,13 +162,13 @@ func (r *BucketReconciler) reconcileDelete(ctx context.Context, service objectst
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *BucketReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r BucketReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Bucket{}).
 		Complete(r)
 }
 
-func (r *BucketReconciler) getRoleArn(ctx context.Context) (string, error) {
+func (r BucketReconciler) getRoleArn(ctx context.Context) (string, error) {
 	logger := log.FromContext(ctx)
 
 	cluster := &unstructured.Unstructured{}

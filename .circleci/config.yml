@@ -3,10 +3,25 @@ version: 2.1
 orbs:
   architect: giantswarm/architect@4.33.0
 
+jobs:
+  unit-tests:
+    executor: architect/architect
+    steps:
+      - checkout
+      - run:
+          name: "Run unit tests"
+          command: CGO_ENABLED=0 make test-unit
 workflows:
   build:
     jobs:
+      - unit-tests:
+          filters:
+            tags:
+              only: /^v.*/
+
       - architect/go-build:
+          requires:
+            - unit-tests
           name: go-build
           binary: object-storage-operator
           filters:
