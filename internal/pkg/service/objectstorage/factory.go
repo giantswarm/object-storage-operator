@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+
 	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage/cloud"
 )
 
