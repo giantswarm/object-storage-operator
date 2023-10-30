@@ -54,7 +54,7 @@ var _ = Describe("Bucket Reconciler", func() {
 	var _ = Describe("CAPA", func() {
 		// creates the reconciler
 		BeforeEach(func() {
-			fakeClient = fake.NewClientBuilder().Build()
+			fakeClient = fake.NewClientBuilder().WithStatusSubresource(&v1alpha1.Bucket{}).Build()
 			reconciler = BucketReconciler{
 				Client:                      fakeClient,
 				ObjectStorageServiceFactory: &serviceFactory,
@@ -129,6 +129,7 @@ var _ = Describe("Bucket Reconciler", func() {
 						Spec: v1alpha1.BucketSpec{
 							Name: BucketName,
 						},
+						Status: v1alpha1.BucketStatus{},
 					}
 					_ = fakeClient.Create(ctx, &bucket)
 				})
@@ -161,6 +162,8 @@ var _ = Describe("Bucket Reconciler", func() {
 						var existingBucket v1alpha1.Bucket
 						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 						Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
+						Expect(existingBucket.Status.BucketID).To(Equal(BucketName))
+						Expect(existingBucket.Status.BucketReady).To(BeTrue())
 					})
 				})
 
@@ -175,6 +178,8 @@ var _ = Describe("Bucket Reconciler", func() {
 						var existingBucket v1alpha1.Bucket
 						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 						Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
+						Expect(existingBucket.Status.BucketID).To(Equal(BucketName))
+						Expect(existingBucket.Status.BucketReady).To(BeTrue())
 					})
 				})
 
@@ -226,6 +231,7 @@ var _ = Describe("Bucket Reconciler", func() {
 						Spec: v1alpha1.BucketSpec{
 							Name: BucketName,
 						},
+						Status: v1alpha1.BucketStatus{},
 					}
 					_ = fakeClient.Create(ctx, &bucket)
 					_ = fakeClient.Delete(ctx, &bucket, &client.DeleteOptions{GracePeriodSeconds: &gracePeriod})
@@ -283,6 +289,7 @@ var _ = Describe("Bucket Reconciler", func() {
 	var _ = Describe("Unknown provider", func() {
 		// creates the reconciler
 		BeforeEach(func() {
+			fakeClient = fake.NewClientBuilder().Build()
 			// creates dummy bucket
 			bucket := v1alpha1.Bucket{
 				ObjectMeta: metav1.ObjectMeta{
@@ -292,6 +299,7 @@ var _ = Describe("Bucket Reconciler", func() {
 				Spec: v1alpha1.BucketSpec{
 					Name: BucketName,
 				},
+				Status: v1alpha1.BucketStatus{},
 			}
 			_ = fakeClient.Create(ctx, &bucket)
 
