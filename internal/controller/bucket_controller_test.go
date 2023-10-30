@@ -73,7 +73,134 @@ var _ = Describe("Bucket Reconciler", func() {
 			_, reconcileErr = reconciler.Reconcile(ctx, request)
 		})
 
-		When("the cluster has an identity set", func() {
+		When("reconciling a missing bucket", func() {
+			It("does nothing", func() {
+				Expect(reconcileErr).ToNot(HaveOccurred())
+				var existingBucket v1alpha1.Bucket
+				_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
+				Expect(existingBucket.Finalizers).To(BeEmpty())
+			})
+		})
+
+		When("the management cluster is in error", func() {
+			BeforeEach(func() {
+				// creates dummy bucket
+				bucket := v1alpha1.Bucket{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      BucketName,
+						Namespace: BucketNamespace,
+					},
+					Spec: v1alpha1.BucketSpec{
+						Name: BucketName,
+					},
+					Status: v1alpha1.BucketStatus{},
+				}
+				_ = fakeClient.Create(ctx, &bucket)
+			})
+
+			When("the management cluster CR is missing", func() {
+				It("fails", func() {
+					Expect(reconcileErr).To(HaveOccurred())
+					var existingBucket v1alpha1.Bucket
+					_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
+					Expect(existingBucket.Finalizers).To(BeEmpty())
+				})
+			})
+
+			When("the management cluster has no identity set", func() {
+				BeforeEach(func() {
+					cluster := &unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"kind":       "AWSCluster",
+							"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta2",
+							"metadata": map[string]interface{}{
+								"name":      reconciler.ManagementCluster.Name,
+								"namespace": reconciler.ManagementCluster.Namespace,
+							},
+							"spec": map[string]interface{}{
+								"identityRef": map[string]interface{}{},
+							},
+						},
+					}
+					_ = fakeClient.Create(ctx, cluster)
+				})
+				It("fails", func() {
+					Expect(reconcileErr).To(HaveOccurred())
+					var existingBucket v1alpha1.Bucket
+					_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
+					Expect(existingBucket.Finalizers).To(BeEmpty())
+				})
+			})
+
+			When("management cluster identity is missing", func() {
+				BeforeEach(func() {
+					cluster := &unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"kind":       "AWSCluster",
+							"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta2",
+							"metadata": map[string]interface{}{
+								"name":      reconciler.ManagementCluster.Name,
+								"namespace": reconciler.ManagementCluster.Namespace,
+							},
+							"spec": map[string]interface{}{
+								"identityRef": map[string]interface{}{
+									"name": reconciler.ManagementCluster.Name,
+								},
+							},
+						},
+					}
+					_ = fakeClient.Create(ctx, cluster)
+				})
+				It("fails", func() {
+					Expect(reconcileErr).To(HaveOccurred())
+					var existingBucket v1alpha1.Bucket
+					_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
+					Expect(existingBucket.Finalizers).To(BeEmpty())
+				})
+			})
+
+			When("management cluster identity has no role arn", func() {
+				BeforeEach(func() {
+					clusterIdentity := &unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"kind":       "AWSClusterRoleIdentity",
+							"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta2",
+							"metadata": map[string]interface{}{
+								"name":      reconciler.ManagementCluster.Name,
+								"namespace": reconciler.ManagementCluster.Namespace,
+							},
+							"spec": map[string]interface{}{},
+						},
+					}
+					_ = fakeClient.Create(ctx, clusterIdentity)
+
+					cluster := &unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"kind":       "AWSCluster",
+							"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta2",
+							"metadata": map[string]interface{}{
+								"name":      reconciler.ManagementCluster.Name,
+								"namespace": reconciler.ManagementCluster.Namespace,
+							},
+							"spec": map[string]interface{}{
+								"identityRef": map[string]interface{}{
+									"name": reconciler.ManagementCluster.Name,
+								},
+							},
+						},
+					}
+					_ = fakeClient.Create(ctx, cluster)
+				})
+				It("fails", func() {
+					Expect(reconcileErr).To(HaveOccurred())
+					var existingBucket v1alpha1.Bucket
+					_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
+					Expect(existingBucket.Finalizers).To(BeEmpty())
+				})
+			})
+		})
+
+		When("the management cluster has an identity set", func() {
 			// creates a dummy management cluster and management cluster identity
 			BeforeEach(func() {
 				clusterIdentity := &unstructured.Unstructured{
@@ -107,15 +234,6 @@ var _ = Describe("Bucket Reconciler", func() {
 					},
 				}
 				_ = fakeClient.Create(ctx, cluster)
-			})
-
-			When("reconciling a missing bucket", func() {
-				It("does nothing", func() {
-					Expect(reconcileErr).ToNot(HaveOccurred())
-					var existingBucket v1alpha1.Bucket
-					_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
-					Expect(existingBucket.Finalizers).To(BeEmpty())
-				})
 			})
 
 			When("the bucket is being created/updated", func() {
@@ -324,4 +442,5 @@ var _ = Describe("Bucket Reconciler", func() {
 			})
 		})
 	})
+
 })
