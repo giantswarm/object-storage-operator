@@ -3,20 +3,35 @@ version: 2.1
 orbs:
   architect: giantswarm/architect@4.33.0
 
+jobs:
+  unit-tests:
+    executor: architect/architect
+    steps:
+      - checkout
+      - run:
+          name: "Run unit tests"
+          command: CGO_ENABLED=0 make test-unit
 workflows:
   build:
     jobs:
+      - unit-tests:
+          filters:
+            tags:
+              only: /^v.*/
+
       - architect/go-build:
+          requires:
+            - unit-tests
           name: go-build
-          binary: template-operator
+          binary: object-storage-operator
           filters:
             tags:
               only: /^v.*/
 
       - architect/push-to-docker:
           context: "architect"
-          name: push-template-operator-to-docker
-          image: "docker.io/giantswarm/template-operator"
+          name: push-to-docker
+          image: "docker.io/giantswarm/object-storage-operator"
           username_envar: "DOCKER_USERNAME"
           password_envar: "DOCKER_PASSWORD"
           requires:
@@ -28,8 +43,8 @@ workflows:
 
       - architect/push-to-docker:
           context: "architect"
-          name: push-template-operator-to-quay
-          image: "quay.io/giantswarm/template-operator"
+          name: push-to-quay
+          image: "quay.io/giantswarm/object-storage-operator"
           username_envar: "QUAY_USERNAME"
           password_envar: "QUAY_PASSWORD"
           requires:
@@ -41,8 +56,8 @@ workflows:
 
       - architect/push-to-docker:
           context: "architect"
-          name: push-template-operator-to-aliyun
-          image: "giantswarm-registry.cn-shanghai.cr.aliyuncs.com/giantswarm/template-operator"
+          name: push-to-aliyun
+          image: "giantswarm-registry.cn-shanghai.cr.aliyuncs.com/giantswarm/object-storage-operator"
           username_envar: "ALIYUN_USERNAME"
           password_envar: "ALIYUN_PASSWORD"
           requires:
@@ -52,17 +67,45 @@ workflows:
             tags:
               only: /^v.*/
 
-
       - architect/push-to-app-catalog:
           context: "architect"
-          name: push-template-operator-to-app-catalog
+          executor: "app-build-suite"
+          name: push-to-app-catalog
           app_catalog: "control-plane-catalog"
           app_catalog_test: "control-plane-test-catalog"
-          chart: "template-operator"
+          chart: "object-storage-operator"
           requires:
-            - push-template-operator-to-docker
-            - push-template-operator-to-quay
+            - push-to-docker
+            - push-to-quay
           # Needed to trigger job also on git tag.
           filters:
+            tags:
+              only: /^v.*/
+
+      - architect/push-to-app-collection:
+          context: "architect"
+          name: capa-app-collection
+          app_name: "object-storage-operator"
+          app_namespace: "object-storage-operator"
+          app_collection_repo: "capa-app-collection"
+          requires:
+            - push-to-app-catalog
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
+
+      - architect/push-to-app-collection:
+          context: "architect"
+          name: capz-app-collection
+          app_name: "object-storage-operator"
+          app_namespace: "object-storage-operator"
+          app_collection_repo: "capz-app-collection"
+          requires:
+            - push-to-app-catalog
+          filters:
+            branches:
+              ignore: /.*/
             tags:
               only: /^v.*/

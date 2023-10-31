@@ -1,0 +1,44 @@
+global:
+  podSecurityStandards:
+    enforced: false
+
+image:
+  registry: docker.io
+  repository: "giantswarm/object-storage-operator"
+  tag: ""
+
+aws:
+  accessKeyID: accesskey
+  secretAccessKey: secretkey
+
+managementCluster:
+  name: "unknown"
+  namespace: "unknown"
+  provider:
+    kind: unknown
+  region: unknown
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  seccompProfile:
+    type: RuntimeDefault
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  seccompProfile:
+    type: RuntimeDefault
+  capabilities:
+    drop:
+      - ALL
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 200Mi
+  limits:
+    cpu: 100m
+    memory: 500Mi
+
+networkPolicy:
+  flavor: cilium

@@ -7,4 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-[Unreleased]: https://github.com/giantswarm/REPOSITORY_NAME/tree/master
+### Added
+
+- Implement creation of S3 buckets on CAPA management clusters.
+
+[Unreleased]: https://github.com/giantswarm/object-storage-operator/tree/main
