@@ -61,13 +61,6 @@ func (s S3ObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1alph
 
 func (s S3ObjectStorageAdapter) ConfigureBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	var err error
-	if bucket.Spec.Acl != nil {
-		err = s.setBucketACL(ctx, bucket)
-		if err != nil {
-			return err
-		}
-	}
-
 	// If expiration is not set, we remove all lifecycle rules
 	err = s.setLifecycleRules(ctx, bucket)
 	if err != nil {
@@ -75,15 +68,6 @@ func (s S3ObjectStorageAdapter) ConfigureBucket(ctx context.Context, bucket *v1a
 	}
 
 	err = s.setTags(ctx, bucket)
-	return err
-}
-
-func (s S3ObjectStorageAdapter) setBucketACL(ctx context.Context, bucket *v1alpha1.Bucket) error {
-	acl := *bucket.Spec.Acl
-	_, err := s.s3Client.PutBucketAcl(ctx, &s3.PutBucketAclInput{
-		Bucket: aws.String(bucket.Spec.Name),
-		ACL:    types.BucketCannedACL(acl),
-	})
 	return err
 }
 

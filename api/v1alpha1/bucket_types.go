@@ -29,9 +29,6 @@ type BucketSpec struct {
 	// Name is the name of the bucket to create.
 	Name string `json:"name"`
 
-	// ACL to put on the bucket to create.
-	// +optional
-	Acl *string `json:"acl,omitempty"`
 	// Expiration policy on the objects in the bucket.
 	// +optional
 	ExpirationPolicy *BucketExpirationPolicy `json:"expirationPolicy,omitempty"`

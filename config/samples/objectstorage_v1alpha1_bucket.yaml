@@ -10,7 +10,6 @@ metadata:
   name: bucket-sample
 spec:
   name: gs-test-object-storage-operator
-  acl: private
   expirationPolicy:
     days: 30
   tags:
