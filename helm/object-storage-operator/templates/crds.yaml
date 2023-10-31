@@ -1,4 +1,4 @@
-{{- range $path := .Files.Glob  "files/crds/*" }}
+{{ range $path, $_ :=  .Files.Glob  "files/crds/*" }}
 ---
-{{- tpl ($.Files.Get $path) $ }}
-{{- end }}
+{{ $.Files.Get $path }}
+{{ end }}
