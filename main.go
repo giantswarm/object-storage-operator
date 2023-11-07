@@ -62,6 +62,7 @@ func main() {
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	// Get all management cluster specific configs.
+	flag.StringVar(&managementCluster.BaseDomain, "management-cluster-base-domain", "", "Management cluster base domain.")
 	flag.StringVar(&managementCluster.Name, "management-cluster-name", "", "Management cluster CR name.")
 	flag.StringVar(&managementCluster.Namespace, "management-cluster-namespace", "", "Management cluster CR namespace.")
 	flag.StringVar(&managementCluster.Provider, "management-cluster-provider", "", "Management cluster provider.")

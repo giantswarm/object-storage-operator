@@ -1,4 +1,4 @@
-package cloud
+package aws
 
 import (
 	"context"
@@ -8,18 +8,21 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go"
+	"github.com/go-logr/logr"
 
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
 )
 
 type S3ObjectStorageAdapter struct {
 	s3Client    *s3.Client
+	logger      logr.Logger
 	cloudRegion string
 }
 
-func NewS3Service(s3Client *s3.Client, cloudRegion string) S3ObjectStorageAdapter {
+func NewS3Service(s3Client *s3.Client, logger logr.Logger, cloudRegion string) S3ObjectStorageAdapter {
 	return S3ObjectStorageAdapter{
 		s3Client:    s3Client,
+		logger:      logger,
 		cloudRegion: cloudRegion,
 	}
 }

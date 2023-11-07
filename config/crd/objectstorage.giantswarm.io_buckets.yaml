@@ -35,6 +35,23 @@ spec:
           spec:
             description: BucketSpec defines the desired state of Bucket
             properties:
+              accessRole:
+                description: Access role that can be assumed to access the bucket
+                properties:
+                  roleName:
+                    description: Name of the role to create
+                    type: string
+                  serviceAccountName:
+                    description: Name of the service account
+                    type: string
+                  serviceAccountNamespace:
+                    description: Namespace of the service account
+                    type: string
+                required:
+                - roleName
+                - serviceAccountName
+                - serviceAccountNamespace
+                type: object
               expirationPolicy:
                 description: Expiration policy on the objects in the bucket.
                 properties:

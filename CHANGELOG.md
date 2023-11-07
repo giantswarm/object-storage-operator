@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add bucket access role creation in the operator.
+
 ## [0.1.0] - 2023-10-31
 
 ### Added

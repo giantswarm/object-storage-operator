@@ -33,9 +33,24 @@ type BucketSpec struct {
 	// +optional
 	ExpirationPolicy *BucketExpirationPolicy `json:"expirationPolicy,omitempty"`
 
+	// Access role that can be assumed to access the bucket
+	AccessRole *BucketAccessRole `json:"accessRole,omitempty"`
+
 	// Tags to add to the bucket.
 	// +optional
 	Tags []BucketTag `json:"tags,omitempty"`
+}
+
+// BucketAccessRole defines the bucket access role to create in the cloud account
+type BucketAccessRole struct {
+	// Name of the role to create
+	RoleName string `json:"roleName"`
+
+	// Name of the service account
+	ServiceAccountName string `json:"serviceAccountName"`
+
+	// Namespace of the service account
+	ServiceAccountNamespace string `json:"serviceAccountNamespace"`
 }
 
 // BucketExpirationPolicy defines the expiration policy on all objects contained in the bucket

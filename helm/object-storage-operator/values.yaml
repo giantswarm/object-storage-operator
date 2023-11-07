@@ -12,6 +12,7 @@ aws:
   secretAccessKey: secretkey
 
 managementCluster:
+  baseDomain: "g8s.gigantic.io"
   name: "unknown"
   namespace: "unknown"
   provider:

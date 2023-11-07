@@ -5,16 +5,36 @@ import (
 	"context"
 	"sync"
 
+	"github.com/go-logr/logr"
+
+	"github.com/giantswarm/object-storage-operator/internal/pkg/managementcluster"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage"
 )
 
 type FakeObjectStorageServiceFactory struct {
-	NewS3ServiceStub        func(context.Context, string, string) (objectstorage.ObjectStorageService, error)
+	NewIAMServiceStub        func(context.Context, logr.Logger, string, managementcluster.ManagementCluster) (objectstorage.AccessRoleService, error)
+	newIAMServiceMutex       sync.RWMutex
+	newIAMServiceArgsForCall []struct {
+		arg1 context.Context
+		arg2 logr.Logger
+		arg3 string
+		arg4 managementcluster.ManagementCluster
+	}
+	newIAMServiceReturns struct {
+		result1 objectstorage.AccessRoleService
+		result2 error
+	}
+	newIAMServiceReturnsOnCall map[int]struct {
+		result1 objectstorage.AccessRoleService
+		result2 error
+	}
+	NewS3ServiceStub        func(context.Context, logr.Logger, string, managementcluster.ManagementCluster) (objectstorage.ObjectStorageService, error)
 	newS3ServiceMutex       sync.RWMutex
 	newS3ServiceArgsForCall []struct {
 		arg1 context.Context
-		arg2 string
+		arg2 logr.Logger
 		arg3 string
+		arg4 managementcluster.ManagementCluster
 	}
 	newS3ServiceReturns struct {
 		result1 objectstorage.ObjectStorageService
@@ -28,20 +48,88 @@ type FakeObjectStorageServiceFactory struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeObjectStorageServiceFactory) NewS3Service(arg1 context.Context, arg2 string, arg3 string) (objectstorage.ObjectStorageService, error) {
+func (fake *FakeObjectStorageServiceFactory) NewIAMService(arg1 context.Context, arg2 logr.Logger, arg3 string, arg4 managementcluster.ManagementCluster) (objectstorage.AccessRoleService, error) {
+	fake.newIAMServiceMutex.Lock()
+	ret, specificReturn := fake.newIAMServiceReturnsOnCall[len(fake.newIAMServiceArgsForCall)]
+	fake.newIAMServiceArgsForCall = append(fake.newIAMServiceArgsForCall, struct {
+		arg1 context.Context
+		arg2 logr.Logger
+		arg3 string
+		arg4 managementcluster.ManagementCluster
+	}{arg1, arg2, arg3, arg4})
+	stub := fake.NewIAMServiceStub
+	fakeReturns := fake.newIAMServiceReturns
+	fake.recordInvocation("NewIAMService", []interface{}{arg1, arg2, arg3, arg4})
+	fake.newIAMServiceMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeObjectStorageServiceFactory) NewIAMServiceCallCount() int {
+	fake.newIAMServiceMutex.RLock()
+	defer fake.newIAMServiceMutex.RUnlock()
+	return len(fake.newIAMServiceArgsForCall)
+}
+
+func (fake *FakeObjectStorageServiceFactory) NewIAMServiceCalls(stub func(context.Context, logr.Logger, string, managementcluster.ManagementCluster) (objectstorage.AccessRoleService, error)) {
+	fake.newIAMServiceMutex.Lock()
+	defer fake.newIAMServiceMutex.Unlock()
+	fake.NewIAMServiceStub = stub
+}
+
+func (fake *FakeObjectStorageServiceFactory) NewIAMServiceArgsForCall(i int) (context.Context, logr.Logger, string, managementcluster.ManagementCluster) {
+	fake.newIAMServiceMutex.RLock()
+	defer fake.newIAMServiceMutex.RUnlock()
+	argsForCall := fake.newIAMServiceArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+}
+
+func (fake *FakeObjectStorageServiceFactory) NewIAMServiceReturns(result1 objectstorage.AccessRoleService, result2 error) {
+	fake.newIAMServiceMutex.Lock()
+	defer fake.newIAMServiceMutex.Unlock()
+	fake.NewIAMServiceStub = nil
+	fake.newIAMServiceReturns = struct {
+		result1 objectstorage.AccessRoleService
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeObjectStorageServiceFactory) NewIAMServiceReturnsOnCall(i int, result1 objectstorage.AccessRoleService, result2 error) {
+	fake.newIAMServiceMutex.Lock()
+	defer fake.newIAMServiceMutex.Unlock()
+	fake.NewIAMServiceStub = nil
+	if fake.newIAMServiceReturnsOnCall == nil {
+		fake.newIAMServiceReturnsOnCall = make(map[int]struct {
+			result1 objectstorage.AccessRoleService
+			result2 error
+		})
+	}
+	fake.newIAMServiceReturnsOnCall[i] = struct {
+		result1 objectstorage.AccessRoleService
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeObjectStorageServiceFactory) NewS3Service(arg1 context.Context, arg2 logr.Logger, arg3 string, arg4 managementcluster.ManagementCluster) (objectstorage.ObjectStorageService, error) {
 	fake.newS3ServiceMutex.Lock()
 	ret, specificReturn := fake.newS3ServiceReturnsOnCall[len(fake.newS3ServiceArgsForCall)]
 	fake.newS3ServiceArgsForCall = append(fake.newS3ServiceArgsForCall, struct {
 		arg1 context.Context
-		arg2 string
+		arg2 logr.Logger
 		arg3 string
-	}{arg1, arg2, arg3})
+		arg4 managementcluster.ManagementCluster
+	}{arg1, arg2, arg3, arg4})
 	stub := fake.NewS3ServiceStub
 	fakeReturns := fake.newS3ServiceReturns
-	fake.recordInvocation("NewS3Service", []interface{}{arg1, arg2, arg3})
+	fake.recordInvocation("NewS3Service", []interface{}{arg1, arg2, arg3, arg4})
 	fake.newS3ServiceMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2, arg3)
+		return stub(arg1, arg2, arg3, arg4)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -55,17 +143,17 @@ func (fake *FakeObjectStorageServiceFactory) NewS3ServiceCallCount() int {
 	return len(fake.newS3ServiceArgsForCall)
 }
 
-func (fake *FakeObjectStorageServiceFactory) NewS3ServiceCalls(stub func(context.Context, string, string) (objectstorage.ObjectStorageService, error)) {
+func (fake *FakeObjectStorageServiceFactory) NewS3ServiceCalls(stub func(context.Context, logr.Logger, string, managementcluster.ManagementCluster) (objectstorage.ObjectStorageService, error)) {
 	fake.newS3ServiceMutex.Lock()
 	defer fake.newS3ServiceMutex.Unlock()
 	fake.NewS3ServiceStub = stub
 }
 
-func (fake *FakeObjectStorageServiceFactory) NewS3ServiceArgsForCall(i int) (context.Context, string, string) {
+func (fake *FakeObjectStorageServiceFactory) NewS3ServiceArgsForCall(i int) (context.Context, logr.Logger, string, managementcluster.ManagementCluster) {
 	fake.newS3ServiceMutex.RLock()
 	defer fake.newS3ServiceMutex.RUnlock()
 	argsForCall := fake.newS3ServiceArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
 }
 
 func (fake *FakeObjectStorageServiceFactory) NewS3ServiceReturns(result1 objectstorage.ObjectStorageService, result2 error) {
@@ -97,6 +185,8 @@ func (fake *FakeObjectStorageServiceFactory) NewS3ServiceReturnsOnCall(i int, re
 func (fake *FakeObjectStorageServiceFactory) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
+	fake.newIAMServiceMutex.RLock()
+	defer fake.newIAMServiceMutex.RUnlock()
 	fake.newS3ServiceMutex.RLock()
 	defer fake.newS3ServiceMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
