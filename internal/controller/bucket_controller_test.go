@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
 	"github.com/giantswarm/object-storage-operator/internal/controller"
@@ -30,6 +31,7 @@ var _ = Describe("Bucket Reconciler", func() {
 		reconciler   controller.BucketReconciler
 		reconcileErr error
 
+		fakeClient     client.Client
 		serviceFactory objectstoragefakes.FakeObjectStorageServiceFactory
 		service        objectstoragefakes.FakeObjectStorageService
 		bucketKey      = client.ObjectKey{
@@ -45,6 +47,8 @@ var _ = Describe("Bucket Reconciler", func() {
 
 		ctx = context.Background()
 
+		fakeClient = fake.NewClientBuilder().WithStatusSubresource(&v1alpha1.Bucket{}).Build()
+
 		serviceFactory = objectstoragefakes.FakeObjectStorageServiceFactory{}
 		service = objectstoragefakes.FakeObjectStorageService{}
 		serviceFactory.NewS3ServiceReturns(&service, nil)
@@ -54,7 +58,7 @@ var _ = Describe("Bucket Reconciler", func() {
 		// creates the reconciler
 		BeforeEach(func() {
 			reconciler = controller.BucketReconciler{
-				Client:                      k8sClient,
+				Client:                      fakeClient,
 				ObjectStorageServiceFactory: &serviceFactory,
 				ManagementCluster: managementcluster.ManagementCluster{
 					Name:      "test-mc",
@@ -75,7 +79,7 @@ var _ = Describe("Bucket Reconciler", func() {
 			It("does nothing", func() {
 				Expect(reconcileErr).ToNot(HaveOccurred())
 				var existingBucket v1alpha1.Bucket
-				_ = k8sClient.Get(ctx, bucketKey, &existingBucket)
+				_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 				Expect(existingBucket.Finalizers).To(BeEmpty())
 			})
 		})
@@ -93,14 +97,14 @@ var _ = Describe("Bucket Reconciler", func() {
 					},
 					Status: v1alpha1.BucketStatus{},
 				}
-				_ = k8sClient.Create(ctx, &bucket)
+				_ = fakeClient.Create(ctx, &bucket)
 			})
 
 			When("the management cluster CR is missing", func() {
 				It("fails", func() {
 					Expect(reconcileErr).To(HaveOccurred())
 					var existingBucket v1alpha1.Bucket
-					_ = k8sClient.Get(ctx, bucketKey, &existingBucket)
+					_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 					Expect(existingBucket.Finalizers).To(BeEmpty())
 				})
 			})
@@ -120,12 +124,12 @@ var _ = Describe("Bucket Reconciler", func() {
 							},
 						},
 					}
-					_ = k8sClient.Create(ctx, cluster)
+					_ = fakeClient.Create(ctx, cluster)
 				})
 				It("fails", func() {
 					Expect(reconcileErr).To(HaveOccurred())
 					var existingBucket v1alpha1.Bucket
-					_ = k8sClient.Get(ctx, bucketKey, &existingBucket)
+					_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 					Expect(existingBucket.Finalizers).To(BeEmpty())
 				})
 			})
@@ -147,12 +151,12 @@ var _ = Describe("Bucket Reconciler", func() {
 							},
 						},
 					}
-					_ = k8sClient.Create(ctx, cluster)
+					_ = fakeClient.Create(ctx, cluster)
 				})
 				It("fails", func() {
 					Expect(reconcileErr).To(HaveOccurred())
 					var existingBucket v1alpha1.Bucket
-					_ = k8sClient.Get(ctx, bucketKey, &existingBucket)
+					_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 					Expect(existingBucket.Finalizers).To(BeEmpty())
 				})
 			})
@@ -170,7 +174,7 @@ var _ = Describe("Bucket Reconciler", func() {
 							"spec": map[string]interface{}{},
 						},
 					}
-					_ = k8sClient.Create(ctx, clusterIdentity)
+					_ = fakeClient.Create(ctx, clusterIdentity)
 
 					cluster := &unstructured.Unstructured{
 						Object: map[string]interface{}{
@@ -187,12 +191,12 @@ var _ = Describe("Bucket Reconciler", func() {
 							},
 						},
 					}
-					_ = k8sClient.Create(ctx, cluster)
+					_ = fakeClient.Create(ctx, cluster)
 				})
 				It("fails", func() {
 					Expect(reconcileErr).To(HaveOccurred())
 					var existingBucket v1alpha1.Bucket
-					_ = k8sClient.Get(ctx, bucketKey, &existingBucket)
+					_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 					Expect(existingBucket.Finalizers).To(BeEmpty())
 				})
 			})
@@ -214,7 +218,7 @@ var _ = Describe("Bucket Reconciler", func() {
 						},
 					},
 				}
-				_ = k8sClient.Create(ctx, clusterIdentity)
+				_ = fakeClient.Create(ctx, clusterIdentity)
 
 				cluster := &unstructured.Unstructured{
 					Object: map[string]interface{}{
@@ -231,7 +235,7 @@ var _ = Describe("Bucket Reconciler", func() {
 						},
 					},
 				}
-				_ = k8sClient.Create(ctx, cluster)
+				_ = fakeClient.Create(ctx, cluster)
 			})
 
 			When("the bucket is being created/updated", func() {
@@ -247,7 +251,7 @@ var _ = Describe("Bucket Reconciler", func() {
 						},
 						Status: v1alpha1.BucketStatus{},
 					}
-					_ = k8sClient.Create(ctx, &bucket)
+					_ = fakeClient.Create(ctx, &bucket)
 				})
 
 				When("reconciling a s3 bucket we do not own", func() {
@@ -260,7 +264,7 @@ var _ = Describe("Bucket Reconciler", func() {
 						Expect(reconcileErr).To(HaveOccurred())
 						Expect(service.ExistsBucketCallCount()).To(Equal(1))
 						var existingBucket v1alpha1.Bucket
-						_ = k8sClient.Get(ctx, bucketKey, &existingBucket)
+						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 						Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
 					})
 				})
@@ -276,7 +280,7 @@ var _ = Describe("Bucket Reconciler", func() {
 						Expect(service.CreateBucketCallCount()).To(Equal(1))
 						Expect(service.ConfigureBucketCallCount()).To(Equal(1))
 						var existingBucket v1alpha1.Bucket
-						_ = k8sClient.Get(ctx, bucketKey, &existingBucket)
+						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 						Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
 						Expect(existingBucket.Status.BucketID).To(Equal(BucketName))
 						Expect(existingBucket.Status.BucketReady).To(BeTrue())
@@ -292,7 +296,7 @@ var _ = Describe("Bucket Reconciler", func() {
 						Expect(service.ExistsBucketCallCount()).To(Equal(1))
 						Expect(service.ConfigureBucketCallCount()).To(Equal(1))
 						var existingBucket v1alpha1.Bucket
-						_ = k8sClient.Get(ctx, bucketKey, &existingBucket)
+						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 						Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
 						Expect(existingBucket.Status.BucketID).To(Equal(BucketName))
 						Expect(existingBucket.Status.BucketReady).To(BeTrue())
@@ -308,7 +312,7 @@ var _ = Describe("Bucket Reconciler", func() {
 
 					It("returns the error", func() {
 						var existingBucket v1alpha1.Bucket
-						_ = k8sClient.Get(ctx, bucketKey, &existingBucket)
+						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 						Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
 						Expect(reconcileErr).To(HaveOccurred())
 						Expect(reconcileErr).Should(MatchError(expectedError))
@@ -324,7 +328,7 @@ var _ = Describe("Bucket Reconciler", func() {
 
 					It("returns the error", func() {
 						var existingBucket v1alpha1.Bucket
-						_ = k8sClient.Get(ctx, bucketKey, &existingBucket)
+						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 						Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
 						Expect(reconcileErr).To(HaveOccurred())
 						Expect(reconcileErr).Should(MatchError(expectedError))
@@ -349,8 +353,8 @@ var _ = Describe("Bucket Reconciler", func() {
 						},
 						Status: v1alpha1.BucketStatus{},
 					}
-					_ = k8sClient.Create(ctx, &bucket)
-					_ = k8sClient.Delete(ctx, &bucket, &client.DeleteOptions{GracePeriodSeconds: &gracePeriod})
+					_ = fakeClient.Create(ctx, &bucket)
+					_ = fakeClient.Delete(ctx, &bucket, &client.DeleteOptions{GracePeriodSeconds: &gracePeriod})
 				})
 
 				When("deleting a bucket is failing", func() {
@@ -365,7 +369,7 @@ var _ = Describe("Bucket Reconciler", func() {
 						Expect(service.ExistsBucketCallCount()).To(Equal(1))
 						Expect(service.DeleteBucketCallCount()).To(Equal(1))
 						var existingBucket v1alpha1.Bucket
-						_ = k8sClient.Get(ctx, bucketKey, &existingBucket)
+						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 						Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
 					})
 				})
@@ -380,7 +384,7 @@ var _ = Describe("Bucket Reconciler", func() {
 						Expect(service.ExistsBucketCallCount()).To(Equal(1))
 						Expect(service.DeleteBucketCallCount()).To(Equal(0))
 						var existingBucket v1alpha1.Bucket
-						_ = k8sClient.Get(ctx, bucketKey, &existingBucket)
+						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 						Expect(existingBucket.Finalizers).ToNot(ContainElement(v1alpha1.BucketFinalizer))
 					})
 				})
@@ -394,7 +398,7 @@ var _ = Describe("Bucket Reconciler", func() {
 						Expect(service.ExistsBucketCallCount()).To(Equal(1))
 						Expect(service.DeleteBucketCallCount()).To(Equal(1))
 						var existingBucket v1alpha1.Bucket
-						_ = k8sClient.Get(ctx, bucketKey, &existingBucket)
+						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 						Expect(existingBucket.Finalizers).ToNot(ContainElement(v1alpha1.BucketFinalizer))
 					})
 				})
@@ -416,10 +420,10 @@ var _ = Describe("Bucket Reconciler", func() {
 				},
 				Status: v1alpha1.BucketStatus{},
 			}
-			_ = k8sClient.Create(ctx, &bucket)
+			_ = fakeClient.Create(ctx, &bucket)
 
 			reconciler = controller.BucketReconciler{
-				Client:                      k8sClient,
+				Client:                      fakeClient,
 				ObjectStorageServiceFactory: &serviceFactory,
 				ManagementCluster: managementcluster.ManagementCluster{
 					Name:      "test-mc",
