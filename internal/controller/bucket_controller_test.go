@@ -1,4 +1,4 @@
-package controller
+package controller_test
 
 import (
 	"context"
@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
+	"github.com/giantswarm/object-storage-operator/internal/controller"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/managementcluster"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage/objectstoragefakes"
 )
@@ -27,7 +28,7 @@ var _ = Describe("Bucket Reconciler", func() {
 	var (
 		ctx context.Context
 
-		reconciler   BucketReconciler
+		reconciler   controller.BucketReconciler
 		reconcileErr error
 
 		fakeClient     client.Client
@@ -46,6 +47,8 @@ var _ = Describe("Bucket Reconciler", func() {
 
 		ctx = context.Background()
 
+		fakeClient = fake.NewClientBuilder().WithStatusSubresource(&v1alpha1.Bucket{}).Build()
+
 		serviceFactory = objectstoragefakes.FakeObjectStorageServiceFactory{}
 		service = objectstoragefakes.FakeObjectStorageService{}
 		serviceFactory.NewS3ServiceReturns(&service, nil)
@@ -54,8 +57,7 @@ var _ = Describe("Bucket Reconciler", func() {
 	var _ = Describe("CAPA", func() {
 		// creates the reconciler
 		BeforeEach(func() {
-			fakeClient = fake.NewClientBuilder().WithStatusSubresource(&v1alpha1.Bucket{}).Build()
-			reconciler = BucketReconciler{
+			reconciler = controller.BucketReconciler{
 				Client:                      fakeClient,
 				ObjectStorageServiceFactory: &serviceFactory,
 				ManagementCluster: managementcluster.ManagementCluster{
@@ -407,7 +409,6 @@ var _ = Describe("Bucket Reconciler", func() {
 	var _ = Describe("Unknown provider", func() {
 		// creates the reconciler
 		BeforeEach(func() {
-			fakeClient = fake.NewClientBuilder().Build()
 			// creates dummy bucket
 			bucket := v1alpha1.Bucket{
 				ObjectMeta: metav1.ObjectMeta{
@@ -421,7 +422,7 @@ var _ = Describe("Bucket Reconciler", func() {
 			}
 			_ = fakeClient.Create(ctx, &bucket)
 
-			reconciler = BucketReconciler{
+			reconciler = controller.BucketReconciler{
 				Client:                      fakeClient,
 				ObjectStorageServiceFactory: &serviceFactory,
 				ManagementCluster: managementcluster.ManagementCluster{

@@ -55,12 +55,13 @@ func (r BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	logger.Info("Started reconciling Bucket")
 	defer logger.Info("Finished reconciling Bucket")
 
-	// Get the bucket that we are reconciling
 	bucket := &v1alpha1.Bucket{}
 	err := r.Client.Get(ctx, req.NamespacedName, bucket)
 	if err != nil {
 		return ctrl.Result{}, errors.WithStack(client.IgnoreNotFound(err))
 	}
+
+	logger.WithValues("bucket", bucket.Spec.Name)
 
 	// Create the correct service implementation based on the provider
 	var service objectstorage.ObjectStorageService
@@ -104,18 +105,17 @@ func (r BucketReconciler) reconcileNormal(ctx context.Context, service objectsto
 	logger.Info("Checking if bucket exists")
 	exists, err := service.ExistsBucket(ctx, bucket)
 	if err != nil {
-		logger.Info(fmt.Sprintf("Either you don't have access to bucket %v or another error occurred. "+
-			"Here's what happened: %v", bucket.Spec.Name, err))
+		logger.Error(err, "Either you don't have access to the bucket or another error occurred")
 		return ctrl.Result{}, errors.WithStack(err)
 	} else if !exists {
-		logger.Info(fmt.Sprintf("Bucket %v is available, creating", bucket.Spec.Name))
+		logger.Info("Bucket is available, creating")
 		err = service.CreateBucket(ctx, bucket)
 		if err != nil {
 			logger.Error(err, "Bucket could not be created")
 			return ctrl.Result{}, errors.WithStack(err)
 		}
 	} else {
-		logger.Info(fmt.Sprintf("Bucket %v exists and you already own it.", bucket.Spec.Name))
+		logger.Info("Bucket exists and you already own it.")
 	}
 
 	logger.Info("Configuring bucket settings")

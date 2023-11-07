@@ -86,7 +86,7 @@ workflows:
           context: "architect"
           name: capa-app-collection
           app_name: "object-storage-operator"
-          app_namespace: "object-storage-operator"
+          app_namespace: "giantswarm"
           app_collection_repo: "capa-app-collection"
           requires:
             - push-to-app-catalog
@@ -100,7 +100,7 @@ workflows:
           context: "architect"
           name: capz-app-collection
           app_name: "object-storage-operator"
-          app_namespace: "object-storage-operator"
+          app_namespace: "giantswarm"
           app_collection_repo: "capz-app-collection"
           requires:
             - push-to-app-catalog
