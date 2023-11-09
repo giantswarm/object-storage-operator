@@ -31,10 +31,11 @@ var _ = Describe("Bucket Reconciler", func() {
 		reconciler   controller.BucketReconciler
 		reconcileErr error
 
-		fakeClient     client.Client
-		serviceFactory objectstoragefakes.FakeObjectStorageServiceFactory
-		service        objectstoragefakes.FakeObjectStorageService
-		bucketKey      = client.ObjectKey{
+		fakeClient           client.Client
+		serviceFactory       objectstoragefakes.FakeObjectStorageServiceFactory
+		objectStorageService objectstoragefakes.FakeObjectStorageService
+		accessRoleService    objectstoragefakes.FakeAccessRoleService
+		bucketKey            = client.ObjectKey{
 			Name:      BucketName,
 			Namespace: BucketNamespace,
 		}
@@ -50,8 +51,10 @@ var _ = Describe("Bucket Reconciler", func() {
 		fakeClient = fake.NewClientBuilder().WithStatusSubresource(&v1alpha1.Bucket{}).Build()
 
 		serviceFactory = objectstoragefakes.FakeObjectStorageServiceFactory{}
-		service = objectstoragefakes.FakeObjectStorageService{}
-		serviceFactory.NewS3ServiceReturns(&service, nil)
+		objectStorageService = objectstoragefakes.FakeObjectStorageService{}
+		accessRoleService = objectstoragefakes.FakeAccessRoleService{}
+		serviceFactory.NewS3ServiceReturns(&objectStorageService, nil)
+		serviceFactory.NewIAMServiceReturns(&accessRoleService, nil)
 	})
 
 	var _ = Describe("CAPA", func() {
@@ -257,12 +260,12 @@ var _ = Describe("Bucket Reconciler", func() {
 				When("reconciling a s3 bucket we do not own", func() {
 					expectedError := errors.New("bucket not owned")
 					BeforeEach(func() {
-						service.ExistsBucketReturns(false, expectedError)
+						objectStorageService.ExistsBucketReturns(false, expectedError)
 					})
 
 					It("failed", func() {
 						Expect(reconcileErr).To(HaveOccurred())
-						Expect(service.ExistsBucketCallCount()).To(Equal(1))
+						Expect(objectStorageService.ExistsBucketCallCount()).To(Equal(1))
 						var existingBucket v1alpha1.Bucket
 						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 						Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
@@ -271,14 +274,14 @@ var _ = Describe("Bucket Reconciler", func() {
 
 				When("reconciling a new s3 bucket", func() {
 					BeforeEach(func() {
-						service.ExistsBucketReturns(false, nil)
+						objectStorageService.ExistsBucketReturns(false, nil)
 					})
 
 					It("was created", func() {
 						Expect(reconcileErr).ToNot(HaveOccurred())
-						Expect(service.ExistsBucketCallCount()).To(Equal(1))
-						Expect(service.CreateBucketCallCount()).To(Equal(1))
-						Expect(service.ConfigureBucketCallCount()).To(Equal(1))
+						Expect(objectStorageService.ExistsBucketCallCount()).To(Equal(1))
+						Expect(objectStorageService.CreateBucketCallCount()).To(Equal(1))
+						Expect(objectStorageService.ConfigureBucketCallCount()).To(Equal(1))
 						var existingBucket v1alpha1.Bucket
 						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 						Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
@@ -289,12 +292,12 @@ var _ = Describe("Bucket Reconciler", func() {
 
 				When("reconciling an exiting s3 bucket", func() {
 					BeforeEach(func() {
-						service.ExistsBucketReturns(true, nil)
+						objectStorageService.ExistsBucketReturns(true, nil)
 					})
 					It("was updated", func() {
 						Expect(reconcileErr).ToNot(HaveOccurred())
-						Expect(service.ExistsBucketCallCount()).To(Equal(1))
-						Expect(service.ConfigureBucketCallCount()).To(Equal(1))
+						Expect(objectStorageService.ExistsBucketCallCount()).To(Equal(1))
+						Expect(objectStorageService.ConfigureBucketCallCount()).To(Equal(1))
 						var existingBucket v1alpha1.Bucket
 						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 						Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
@@ -307,7 +310,7 @@ var _ = Describe("Bucket Reconciler", func() {
 					expectedError := errors.New("failed creating the Bucket")
 
 					BeforeEach(func() {
-						service.CreateBucketReturns(expectedError)
+						objectStorageService.CreateBucketReturns(expectedError)
 					})
 
 					It("returns the error", func() {
@@ -323,7 +326,7 @@ var _ = Describe("Bucket Reconciler", func() {
 					expectedError := errors.New("failed configuring the Bucket")
 
 					BeforeEach(func() {
-						service.ConfigureBucketReturns(expectedError)
+						objectStorageService.ConfigureBucketReturns(expectedError)
 					})
 
 					It("returns the error", func() {
@@ -360,14 +363,14 @@ var _ = Describe("Bucket Reconciler", func() {
 				When("deleting a bucket is failing", func() {
 					expectedError := errors.New("bucket could not be deleted")
 					BeforeEach(func() {
-						service.ExistsBucketReturns(true, nil)
-						service.DeleteBucketReturns(expectedError)
+						objectStorageService.ExistsBucketReturns(true, nil)
+						objectStorageService.DeleteBucketReturns(expectedError)
 					})
 
 					It("was not deleted", func() {
 						Expect(reconcileErr).To(HaveOccurred())
-						Expect(service.ExistsBucketCallCount()).To(Equal(1))
-						Expect(service.DeleteBucketCallCount()).To(Equal(1))
+						Expect(objectStorageService.ExistsBucketCallCount()).To(Equal(1))
+						Expect(objectStorageService.DeleteBucketCallCount()).To(Equal(1))
 						var existingBucket v1alpha1.Bucket
 						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 						Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
@@ -376,13 +379,13 @@ var _ = Describe("Bucket Reconciler", func() {
 
 				When("deleting a bucket that does not exists", func() {
 					BeforeEach(func() {
-						service.ExistsBucketReturns(false, nil)
+						objectStorageService.ExistsBucketReturns(false, nil)
 					})
 
 					It("was free of its finalizer", func() {
 						Expect(reconcileErr).ToNot(HaveOccurred())
-						Expect(service.ExistsBucketCallCount()).To(Equal(1))
-						Expect(service.DeleteBucketCallCount()).To(Equal(0))
+						Expect(objectStorageService.ExistsBucketCallCount()).To(Equal(1))
+						Expect(objectStorageService.DeleteBucketCallCount()).To(Equal(0))
 						var existingBucket v1alpha1.Bucket
 						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 						Expect(existingBucket.Finalizers).ToNot(ContainElement(v1alpha1.BucketFinalizer))
@@ -391,12 +394,12 @@ var _ = Describe("Bucket Reconciler", func() {
 
 				When("deleting a bucket that does not exists", func() {
 					BeforeEach(func() {
-						service.ExistsBucketReturns(true, nil)
+						objectStorageService.ExistsBucketReturns(true, nil)
 					})
 					It("was deleted", func() {
 						Expect(reconcileErr).ToNot(HaveOccurred())
-						Expect(service.ExistsBucketCallCount()).To(Equal(1))
-						Expect(service.DeleteBucketCallCount()).To(Equal(1))
+						Expect(objectStorageService.ExistsBucketCallCount()).To(Equal(1))
+						Expect(objectStorageService.DeleteBucketCallCount()).To(Equal(1))
 						var existingBucket v1alpha1.Bucket
 						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 						Expect(existingBucket.Finalizers).ToNot(ContainElement(v1alpha1.BucketFinalizer))

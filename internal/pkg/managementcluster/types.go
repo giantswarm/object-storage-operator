@@ -1,8 +1,9 @@
 package managementcluster
 
 type ManagementCluster struct {
-	Name      string
-	Namespace string
-	Provider  string
-	Region    string
+	BaseDomain string
+	Name       string
+	Namespace  string
+	Provider   string
+	Region     string
 }

@@ -30,6 +30,7 @@ spec:
         image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ default .Chart.Version .Values.image.tag }}"
         args:
           - --leader-elect
+          - --management-cluster-base-domain={{ .Values.managementCluster.baseDomain }}
           - --management-cluster-namespace={{ .Values.managementCluster.namespace }}
           - --management-cluster-name={{ .Values.managementCluster.name  }}
           - --management-cluster-provider={{ .Values.managementCluster.provider.kind  }}

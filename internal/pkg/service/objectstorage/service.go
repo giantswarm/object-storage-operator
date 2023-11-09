@@ -15,3 +15,10 @@ type ObjectStorageService interface {
 	// Exists checks whether a bucket exists in the current account.
 	ExistsBucket(ctx context.Context, bucket *v1alpha1.Bucket) (bool, error)
 }
+
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . AccessRoleService
+type AccessRoleService interface {
+	// Configure the role to access the bucket
+	ConfigureRole(ctx context.Context, bucket *v1alpha1.Bucket) error
+	DeleteRole(ctx context.Context, bucket *v1alpha1.Bucket) error
+}
