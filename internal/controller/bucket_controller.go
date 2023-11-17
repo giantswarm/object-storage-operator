@@ -31,6 +31,7 @@ import (
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
 	managementcluster "github.com/giantswarm/object-storage-operator/internal/pkg/managementcluster"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage"
+	cloudazure "github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage/cloud/azure"
 )
 
 // BucketReconciler reconciles a Bucket object
@@ -38,6 +39,26 @@ type BucketReconciler struct {
 	client.Client
 	objectstorage.ObjectStorageServiceFactory
 	managementcluster.ManagementCluster
+}
+
+var kindCluster = map[string]string{
+	"capa": "AWSCluster",
+	"capz": "AzureCluster",
+}
+
+var versionAPICluster = map[string]string{
+	"capa": "v1beta2",
+	"capz": "v1beta1",
+}
+
+var kindClusterIdentity = map[string]string{
+	"capa": "AWSClusterRoleIdentity",
+	"capz": "AZureClusterRoleIdentity",
+}
+
+var versionAPIClusterIdentity = map[string]string{
+	"capa": "v1beta2",
+	"capz": "v1beta1",
 }
 
 //+kubebuilder:rbac:groups=objectstorage.giantswarm.io,resources=buckets,verbs=get;list;watch;create;update;patch;delete
@@ -81,6 +102,17 @@ func (r BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		if err != nil {
 			return ctrl.Result{}, errors.WithStack(err)
 		}
+	case "capz":
+		logger.Info("YOUHOU TEST")
+		azureCluster, err := r.getAzureCluster(ctx)
+		if err != nil {
+			return ctrl.Result{}, errors.WithStack(err)
+		}
+		objectStorageService, err = r.ObjectStorageServiceFactory.NewAzureStorageService(ctx, logger, r.Client, azureCluster)
+		if err != nil {
+			return ctrl.Result{}, errors.WithStack(err)
+		}
+		//TODO
 	default:
 		return ctrl.Result{}, errors.New(fmt.Sprintf("unsupported provider %s", r.ManagementCluster.Provider))
 	}
@@ -196,45 +228,55 @@ func (r BucketReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r BucketReconciler) getRoleArn(ctx context.Context) (string, error) {
 	logger := log.FromContext(ctx)
 
-	cluster := &unstructured.Unstructured{}
-	cluster.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "infrastructure.cluster.x-k8s.io",
-		Kind:    "AWSCluster",
-		Version: "v1beta2",
-	})
+	// cluster := &unstructured.Unstructured{}
+	// cluster.SetGroupVersionKind(schema.GroupVersionKind{
+	// 	Group:   "infrastructure.cluster.x-k8s.io",
+	// 	Kind:    "AWSCluster",
+	// 	Version: "v1beta2",
+	// })
 
-	err := r.Client.Get(ctx, client.ObjectKey{
-		Name:      r.ManagementCluster.Name,
-		Namespace: r.ManagementCluster.Namespace,
-	}, cluster)
+	// err := r.Client.Get(ctx, client.ObjectKey{
+	// 	Name:      r.ManagementCluster.Name,
+	// 	Namespace: r.ManagementCluster.Namespace,
+	// }, cluster)
+	// if err != nil {
+	// 	logger.Error(err, "Missing management cluster AWSCluster CR")
+	// 	return "", errors.WithStack(err)
+	// }
+
+	// clusterIdentityName, found, err := unstructured.NestedString(cluster.Object, "spec", "identityRef", "name")
+	// if err != nil {
+	// 	logger.Error(err, "Identity name is not a string")
+	// 	return "", errors.WithStack(err)
+	// }
+	// if !found || clusterIdentityName == "" {
+	// 	logger.Info("Missing identity, skipping")
+	// 	return "", errors.New("missing management cluster identify")
+	// }
+
+	// clusterIdentity := &unstructured.Unstructured{}
+	// clusterIdentity.SetGroupVersionKind(schema.GroupVersionKind{
+	// 	Group:   "infrastructure.cluster.x-k8s.io",
+	// 	Kind:    "AWSClusterRoleIdentity",
+	// 	Version: "v1beta2",
+	// })
+
+	// err = r.Client.Get(ctx, client.ObjectKey{
+	// 	Name:      clusterIdentityName,
+	// 	Namespace: cluster.GetNamespace(),
+	// }, clusterIdentity)
+	// if err != nil {
+	// 	logger.Error(err, "Missing management cluster identity AWSClusterRoleIdentity CR")
+	// 	return "", errors.WithStack(err)
+	// }
+
+	cluster, err := r.getCluster(ctx)
 	if err != nil {
-		logger.Error(err, "Missing management cluster AWSCluster CR")
 		return "", errors.WithStack(err)
 	}
 
-	clusterIdentityName, found, err := unstructured.NestedString(cluster.Object, "spec", "identityRef", "name")
+	clusterIdentity, err := r.getClusterIdentity(ctx, cluster)
 	if err != nil {
-		logger.Error(err, "Identity name is not a string")
-		return "", errors.WithStack(err)
-	}
-	if !found || clusterIdentityName == "" {
-		logger.Info("Missing identity, skipping")
-		return "", errors.New("missing management cluster identify")
-	}
-
-	clusterIdentity := &unstructured.Unstructured{}
-	clusterIdentity.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "infrastructure.cluster.x-k8s.io",
-		Kind:    "AWSClusterRoleIdentity",
-		Version: "v1beta2",
-	})
-
-	err = r.Client.Get(ctx, client.ObjectKey{
-		Name:      clusterIdentityName,
-		Namespace: cluster.GetNamespace(),
-	}, clusterIdentity)
-	if err != nil {
-		logger.Error(err, "Missing management cluster identity AWSClusterRoleIdentity CR")
 		return "", errors.WithStack(err)
 	}
 
@@ -247,4 +289,122 @@ func (r BucketReconciler) getRoleArn(ctx context.Context) (string, error) {
 		return "", errors.New("missing role arn")
 	}
 	return roleArn, nil
+}
+
+// getCluster retrieve the Cluster CR of the related provider
+func (r BucketReconciler) getCluster(ctx context.Context) (unstructured.Unstructured, error) {
+	logger := log.FromContext(ctx)
+
+	cluster := &unstructured.Unstructured{}
+	cluster.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "infrastructure.cluster.x-k8s.io",
+		Kind:    kindCluster[r.ManagementCluster.Provider],
+		Version: versionAPICluster[r.ManagementCluster.Provider],
+	})
+
+	err := r.Client.Get(ctx, client.ObjectKey{
+		Name:      r.ManagementCluster.Name,
+		Namespace: r.ManagementCluster.Namespace,
+	}, cluster)
+	if err != nil {
+		logger.Error(err, fmt.Sprintf("Missing management cluster %s CR", kindCluster[r.ManagementCluster.Provider]))
+		return unstructured.Unstructured{}, errors.WithStack(err)
+	}
+
+	return *cluster, nil
+}
+
+// getClusterIdentity retrieve the ClusterIdentity CR of the related provider
+func (r BucketReconciler) getClusterIdentity(ctx context.Context, cluster unstructured.Unstructured) (unstructured.Unstructured, error) {
+	logger := log.FromContext(ctx)
+
+	clusterIdentityName, found, err := unstructured.NestedString(cluster.Object, "spec", "identityRef", "name")
+	if err != nil {
+		logger.Error(err, "Identity name is not a string")
+		return unstructured.Unstructured{}, errors.WithStack(err)
+	}
+	if !found || clusterIdentityName == "" {
+		logger.Info("Missing identity, skipping")
+		return unstructured.Unstructured{}, errors.New("missing management cluster identify")
+	}
+
+	clusterIdentity := &unstructured.Unstructured{}
+	clusterIdentity.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "infrastructure.cluster.x-k8s.io",
+		Kind:    kindClusterIdentity[r.ManagementCluster.Provider],
+		Version: versionAPIClusterIdentity[r.ManagementCluster.Provider],
+	})
+
+	err = r.Client.Get(ctx, client.ObjectKey{
+		Name:      clusterIdentityName,
+		Namespace: cluster.GetNamespace(),
+	}, clusterIdentity)
+	if err != nil {
+		logger.Error(err, fmt.Sprintf("Missing management cluster identity %s CR", kindClusterIdentity[r.ManagementCluster.Provider]))
+		return unstructured.Unstructured{}, errors.WithStack(err)
+	}
+
+	return *clusterIdentity, nil
+}
+
+// getAzureCluster retrieve the data useful for an Azure cluster to be able to create an Azure Client
+func (r BucketReconciler) getAzureCluster(ctx context.Context) (cloudazure.AzureCluster, error) {
+	cluster, err := r.getCluster(ctx)
+	if err != nil {
+		return cloudazure.AzureCluster{}, errors.WithStack(err)
+	}
+
+	clusterIdentity, err := r.getClusterIdentity(ctx, cluster)
+	if err != nil {
+		return cloudazure.AzureCluster{}, errors.WithStack(err)
+	}
+
+	subscriptionID, found, err := unstructured.NestedString(cluster.Object, "spec", "subscriptionID")
+	if !found || err != nil {
+		return cloudazure.AzureCluster{}, errors.New("Missing or incorrect subscriptionID")
+	}
+	typeIdentity, found, err := unstructured.NestedString(clusterIdentity.Object, "spec", "type")
+	if !found || err != nil {
+		return cloudazure.AzureCluster{}, errors.New("Missing or incorrect identity.type")
+	}
+	clientID, tenantID, clientSecretName, clientSecretNamespace := "", "", "", ""
+	if typeIdentity == "UserAssignedMSI" {
+		clientID, found, err = unstructured.NestedString(clusterIdentity.Object, "spec", "clientID")
+		if !found || err != nil {
+			return cloudazure.AzureCluster{}, errors.New("Missing or incorrect identity.clientID")
+		}
+	}
+	if typeIdentity == "ManualServicePrincipal" {
+		tenantID, found, err = unstructured.NestedString(clusterIdentity.Object, "spec", "tenantID")
+		if !found || err != nil {
+			return cloudazure.AzureCluster{}, errors.New("Missing or incorrect identity.tenantID")
+		}
+		clientID, found, err = unstructured.NestedString(clusterIdentity.Object, "spec", "clientID")
+		if !found || err != nil {
+			return cloudazure.AzureCluster{}, errors.New("Missing or incorrect identity.clientID")
+		}
+		clientSecretName, found, err = unstructured.NestedString(clusterIdentity.Object, "spec", "clientSecret", "name")
+		if !found || err != nil {
+			return cloudazure.AzureCluster{}, errors.New("Missing or incorrect identity.clientSecret.name")
+		}
+		clientSecretNamespace, found, err = unstructured.NestedString(clusterIdentity.Object, "spec", "clientSecret", "namespace")
+		if !found || err != nil {
+			return cloudazure.AzureCluster{}, errors.New("Missing or incorrect identity.clientSecret.namespace")
+		}
+	}
+
+	var azCluster = cloudazure.AzureCluster{
+		SubscriptionID: subscriptionID,
+		AzureIdentity: cloudazure.AzureIdentity{
+			Type:     typeIdentity,
+			TenantID: tenantID,
+			ClientID: clientID,
+			ClientSecret: cloudazure.ClientSecret{
+				Name:      clientSecretName,
+				Namespace: clientSecretNamespace,
+			},
+		},
+	}
+
+	return azCluster, nil
 }

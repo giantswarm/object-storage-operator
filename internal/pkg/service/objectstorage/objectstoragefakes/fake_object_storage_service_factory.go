@@ -7,8 +7,11 @@ import (
 
 	"github.com/go-logr/logr"
 
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	"github.com/giantswarm/object-storage-operator/internal/pkg/managementcluster"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage"
+	cloudazure "github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage/cloud/azure"
 )
 
 type FakeObjectStorageServiceFactory struct {
@@ -41,6 +44,22 @@ type FakeObjectStorageServiceFactory struct {
 		result2 error
 	}
 	newS3ServiceReturnsOnCall map[int]struct {
+		result1 objectstorage.ObjectStorageService
+		result2 error
+	}
+	NewAzureStorageServiceStub        func(context.Context, logr.Logger, client.Client, cloudazure.AzureCluster) (objectstorage.ObjectStorageService, error)
+	newAzureStorageServiceMutex       sync.RWMutex
+	newAzureStorageServiceArgsForCall []struct {
+		arg1 context.Context
+		arg2 logr.Logger
+		arg3 client.Client
+		arg4 cloudazure.AzureCluster
+	}
+	newAzureStorageServiceReturns struct {
+		result1 objectstorage.ObjectStorageService
+		result2 error
+	}
+	newAzureStorageServiceReturnsOnCall map[int]struct {
 		result1 objectstorage.ObjectStorageService
 		result2 error
 	}
@@ -182,6 +201,74 @@ func (fake *FakeObjectStorageServiceFactory) NewS3ServiceReturnsOnCall(i int, re
 	}{result1, result2}
 }
 
+
+func (fake *FakeObjectStorageServiceFactory) NewAzureStorageService(arg1 context.Context, arg2 logr.Logger, arg3 client.Client, arg4 cloudazure.AzureCluster) (objectstorage.ObjectStorageService, error) {
+	fake.newAzureStorageServiceMutex.Lock()
+	ret, specificReturn := fake.newAzureStorageServiceReturnsOnCall[len(fake.newAzureStorageServiceArgsForCall)]
+	fake.newAzureStorageServiceArgsForCall = append(fake.newAzureStorageServiceArgsForCall, struct {
+		arg1 context.Context
+		arg2 logr.Logger
+		arg3 client.Client
+		arg4 cloudazure.AzureCluster
+	}{arg1, arg2, arg3, arg4})
+	stub := fake.NewAzureStorageServiceStub
+	fakeReturns := fake.newAzureStorageServiceReturns
+	fake.recordInvocation("NewAzureStorageService", []interface{}{arg1, arg2, arg3, arg4})
+	fake.newAzureStorageServiceMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeObjectStorageServiceFactory) NewAzureStorageServiceCallCount() int {
+	fake.newAzureStorageServiceMutex.RLock()
+	defer fake.newAzureStorageServiceMutex.RUnlock()
+	return len(fake.newAzureStorageServiceArgsForCall)
+}
+
+func (fake *FakeObjectStorageServiceFactory) NewAzureStorageServiceCalls(stub func(context.Context, logr.Logger, client.Client, cloudazure.AzureCluster) (objectstorage.ObjectStorageService, error)) {
+	fake.newAzureStorageServiceMutex.Lock()
+	defer fake.newAzureStorageServiceMutex.Unlock()
+	fake.NewAzureStorageServiceStub = stub
+}
+
+func (fake *FakeObjectStorageServiceFactory) NewAzureStorageServiceArgsForCall(i int) (context.Context, logr.Logger, client.Client, cloudazure.AzureCluster) {
+	fake.newAzureStorageServiceMutex.RLock()
+	defer fake.newAzureStorageServiceMutex.RUnlock()
+	argsForCall := fake.newAzureStorageServiceArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+}
+
+func (fake *FakeObjectStorageServiceFactory) NewAzureStorageServiceReturns(result1 objectstorage.ObjectStorageService, result2 error) {
+	fake.newAzureStorageServiceMutex.Lock()
+	defer fake.newAzureStorageServiceMutex.Unlock()
+	fake.NewAzureStorageServiceStub = nil
+	fake.newAzureStorageServiceReturns = struct {
+		result1 objectstorage.ObjectStorageService
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeObjectStorageServiceFactory) NewAzureStorageServiceReturnsOnCall(i int, result1 objectstorage.ObjectStorageService, result2 error) {
+	fake.newAzureStorageServiceMutex.Lock()
+	defer fake.newAzureStorageServiceMutex.Unlock()
+	fake.NewAzureStorageServiceStub = nil
+	if fake.newAzureStorageServiceReturnsOnCall == nil {
+		fake.newAzureStorageServiceReturnsOnCall = make(map[int]struct {
+			result1 objectstorage.ObjectStorageService
+			result2 error
+		})
+	}
+	fake.newAzureStorageServiceReturnsOnCall[i] = struct {
+		result1 objectstorage.ObjectStorageService
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeObjectStorageServiceFactory) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -189,6 +276,8 @@ func (fake *FakeObjectStorageServiceFactory) Invocations() map[string][][]interf
 	defer fake.newIAMServiceMutex.RUnlock()
 	fake.newS3ServiceMutex.RLock()
 	defer fake.newS3ServiceMutex.RUnlock()
+	fake.newAzureStorageServiceMutex.RLock()
+	defer fake.newAzureStorageServiceMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value
