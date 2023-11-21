@@ -10,11 +10,12 @@ import (
 )
 
 type FakeObjectStorageService struct {
-	ConfigureBucketStub        func(context.Context, *v1alpha1.Bucket) error
+	ConfigureBucketStub        func(context.Context, *v1alpha1.Bucket, map[string]string) error
 	configureBucketMutex       sync.RWMutex
 	configureBucketArgsForCall []struct {
 		arg1 context.Context
 		arg2 *v1alpha1.Bucket
+		arg3 map[string]string
 	}
 	configureBucketReturns struct {
 		result1 error
@@ -64,19 +65,20 @@ type FakeObjectStorageService struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeObjectStorageService) ConfigureBucket(arg1 context.Context, arg2 *v1alpha1.Bucket) error {
+func (fake *FakeObjectStorageService) ConfigureBucket(arg1 context.Context, arg2 *v1alpha1.Bucket, arg3 map[string]string) error {
 	fake.configureBucketMutex.Lock()
 	ret, specificReturn := fake.configureBucketReturnsOnCall[len(fake.configureBucketArgsForCall)]
 	fake.configureBucketArgsForCall = append(fake.configureBucketArgsForCall, struct {
 		arg1 context.Context
 		arg2 *v1alpha1.Bucket
-	}{arg1, arg2})
+		arg3 map[string]string
+	}{arg1, arg2, arg3})
 	stub := fake.ConfigureBucketStub
 	fakeReturns := fake.configureBucketReturns
-	fake.recordInvocation("ConfigureBucket", []interface{}{arg1, arg2})
+	fake.recordInvocation("ConfigureBucket", []interface{}{arg1, arg2, arg3})
 	fake.configureBucketMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2)
+		return stub(arg1, arg2, arg3)
 	}
 	if specificReturn {
 		return ret.result1
@@ -90,17 +92,17 @@ func (fake *FakeObjectStorageService) ConfigureBucketCallCount() int {
 	return len(fake.configureBucketArgsForCall)
 }
 
-func (fake *FakeObjectStorageService) ConfigureBucketCalls(stub func(context.Context, *v1alpha1.Bucket) error) {
+func (fake *FakeObjectStorageService) ConfigureBucketCalls(stub func(context.Context, *v1alpha1.Bucket, map[string]string) error) {
 	fake.configureBucketMutex.Lock()
 	defer fake.configureBucketMutex.Unlock()
 	fake.ConfigureBucketStub = stub
 }
 
-func (fake *FakeObjectStorageService) ConfigureBucketArgsForCall(i int) (context.Context, *v1alpha1.Bucket) {
+func (fake *FakeObjectStorageService) ConfigureBucketArgsForCall(i int) (context.Context, *v1alpha1.Bucket, map[string]string) {
 	fake.configureBucketMutex.RLock()
 	defer fake.configureBucketMutex.RUnlock()
 	argsForCall := fake.configureBucketArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
 func (fake *FakeObjectStorageService) ConfigureBucketReturns(result1 error) {
