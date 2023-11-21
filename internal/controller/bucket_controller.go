@@ -27,14 +27,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
-	cluster "github.com/giantswarm/object-storage-operator/internal/pkg/managementcluster"
+	managementcluster "github.com/giantswarm/object-storage-operator/internal/pkg/managementcluster"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage"
 )
 
 // BucketReconciler reconciles a Bucket object
 type BucketReconciler struct {
 	client.Client
-	cluster.ManagementCluster
+	managementcluster.ManagementCluster
 }
 
 //+kubebuilder:rbac:groups=objectstorage.giantswarm.io,resources=buckets,verbs=get;list;watch;create;update;patch;delete
@@ -65,7 +65,7 @@ func (r BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	var accessRoleService objectstorage.AccessRoleService
 	switch r.ManagementCluster.Provider {
 	case "capa":
-		var cluster = cluster.CAPACluster{
+		var cluster = managementcluster.CAPACluster{
 			ManagementCluster: r.ManagementCluster,
 		}
 		cluster.RoleToAssume, err = cluster.GetRoleArn(ctx, req, r.Client)
