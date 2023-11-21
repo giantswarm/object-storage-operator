@@ -32,9 +32,7 @@ var _ = Describe("Bucket Reconciler", func() {
 		reconcileErr error
 
 		fakeClient           client.Client
-		serviceFactory       objectstoragefakes.FakeObjectStorageServiceFactory
 		objectStorageService objectstoragefakes.FakeObjectStorageService
-		accessRoleService    objectstoragefakes.FakeAccessRoleService
 		bucketKey            = client.ObjectKey{
 			Name:      BucketName,
 			Namespace: BucketNamespace,
@@ -50,19 +48,14 @@ var _ = Describe("Bucket Reconciler", func() {
 
 		fakeClient = fake.NewClientBuilder().WithStatusSubresource(&v1alpha1.Bucket{}).Build()
 
-		serviceFactory = objectstoragefakes.FakeObjectStorageServiceFactory{}
 		objectStorageService = objectstoragefakes.FakeObjectStorageService{}
-		accessRoleService = objectstoragefakes.FakeAccessRoleService{}
-		serviceFactory.NewS3ServiceReturns(&objectStorageService, nil)
-		serviceFactory.NewIAMServiceReturns(&accessRoleService, nil)
 	})
 
 	var _ = Describe("CAPA", func() {
 		// creates the reconciler
 		BeforeEach(func() {
 			reconciler = controller.BucketReconciler{
-				Client:                      fakeClient,
-				ObjectStorageServiceFactory: &serviceFactory,
+				Client: fakeClient,
 				ManagementCluster: managementcluster.ManagementCluster{
 					Name:      "test-mc",
 					Namespace: "giantswarm",
@@ -426,8 +419,7 @@ var _ = Describe("Bucket Reconciler", func() {
 			_ = fakeClient.Create(ctx, &bucket)
 
 			reconciler = controller.BucketReconciler{
-				Client:                      fakeClient,
-				ObjectStorageServiceFactory: &serviceFactory,
+				Client: fakeClient,
 				ManagementCluster: managementcluster.ManagementCluster{
 					Name:      "test-mc",
 					Namespace: "giantswarm",

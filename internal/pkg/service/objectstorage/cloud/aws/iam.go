@@ -13,22 +13,23 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
-	"github.com/giantswarm/object-storage-operator/internal/pkg/managementcluster"
 )
 
 type IAMAccessRoleServiceAdapter struct {
-	iamClient         *iam.Client
-	logger            logr.Logger
-	accountId         string
-	managementCluster managementcluster.ManagementCluster
+	iamClient   *iam.Client
+	logger      logr.Logger
+	accountId   string
+	baseDomain  string
+	clusterName string
 }
 
-func NewIamService(iamClient *iam.Client, logger logr.Logger, accountId string, managementCluster managementcluster.ManagementCluster) IAMAccessRoleServiceAdapter {
+func NewIamService(iamClient *iam.Client, logger logr.Logger, accountId string, baseDomain string, clusterName string) IAMAccessRoleServiceAdapter {
 	return IAMAccessRoleServiceAdapter{
-		iamClient:         iamClient,
-		logger:            logger,
-		accountId:         accountId,
-		managementCluster: managementCluster,
+		iamClient:   iamClient,
+		logger:      logger,
+		accountId:   accountId,
+		baseDomain:  baseDomain,
+		clusterName: clusterName,
 	}
 }
 
@@ -61,7 +62,7 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 		return err
 	}
 
-	trustPolicy := templateTrustPolicy(s.accountId, s.managementCluster, bucket)
+	trustPolicy := templateTrustPolicy(s.accountId, s.baseDomain, s.clusterName, bucket)
 	if role == nil {
 		_, err := s.iamClient.CreateRole(ctx, &iam.CreateRoleInput{
 			RoleName:                 aws.String(roleName),
@@ -212,9 +213,9 @@ func templateRolePolicy(bucket *v1alpha1.Bucket) string {
 	return strings.ReplaceAll(rolePolicy, "@BUCKET_NAME@", bucket.Spec.Name)
 }
 
-func templateTrustPolicy(accountId string, managementCluster managementcluster.ManagementCluster, bucket *v1alpha1.Bucket) string {
-	policy := strings.ReplaceAll(trustIdentityPolicy, "@CLOUD_DOMAIN@", managementCluster.BaseDomain)
-	policy = strings.ReplaceAll(policy, "@INSTALLATION@", managementCluster.Name)
+func templateTrustPolicy(accountId string, baseDomain string, clusterName string, bucket *v1alpha1.Bucket) string {
+	policy := strings.ReplaceAll(trustIdentityPolicy, "@CLOUD_DOMAIN@", baseDomain)
+	policy = strings.ReplaceAll(policy, "@INSTALLATION@", clusterName)
 	policy = strings.ReplaceAll(policy, "@ACCOUNT_ID@", accountId)
 	policy = strings.ReplaceAll(policy, "@SERVICE_ACCOUNT_NAMESPACE@", bucket.Spec.AccessRole.ServiceAccountNamespace)
 	policy = strings.ReplaceAll(policy, "@SERVICE_ACCOUNT_NAME@", bucket.Spec.AccessRole.ServiceAccountName)
