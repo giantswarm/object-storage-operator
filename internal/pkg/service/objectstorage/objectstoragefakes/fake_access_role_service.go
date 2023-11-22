@@ -10,11 +10,12 @@ import (
 )
 
 type FakeAccessRoleService struct {
-	ConfigureRoleStub        func(context.Context, *v1alpha1.Bucket) error
+	ConfigureRoleStub        func(context.Context, *v1alpha1.Bucket, map[string]string) error
 	configureRoleMutex       sync.RWMutex
 	configureRoleArgsForCall []struct {
 		arg1 context.Context
 		arg2 *v1alpha1.Bucket
+		arg3 map[string]string
 	}
 	configureRoleReturns struct {
 		result1 error
@@ -38,19 +39,20 @@ type FakeAccessRoleService struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeAccessRoleService) ConfigureRole(arg1 context.Context, arg2 *v1alpha1.Bucket) error {
+func (fake *FakeAccessRoleService) ConfigureRole(arg1 context.Context, arg2 *v1alpha1.Bucket, arg3 map[string]string) error {
 	fake.configureRoleMutex.Lock()
 	ret, specificReturn := fake.configureRoleReturnsOnCall[len(fake.configureRoleArgsForCall)]
 	fake.configureRoleArgsForCall = append(fake.configureRoleArgsForCall, struct {
 		arg1 context.Context
 		arg2 *v1alpha1.Bucket
-	}{arg1, arg2})
+		arg3 map[string]string
+	}{arg1, arg2, arg3})
 	stub := fake.ConfigureRoleStub
 	fakeReturns := fake.configureRoleReturns
-	fake.recordInvocation("ConfigureRole", []interface{}{arg1, arg2})
+	fake.recordInvocation("ConfigureRole", []interface{}{arg1, arg2, arg3})
 	fake.configureRoleMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2)
+		return stub(arg1, arg2, arg3)
 	}
 	if specificReturn {
 		return ret.result1
@@ -64,17 +66,17 @@ func (fake *FakeAccessRoleService) ConfigureRoleCallCount() int {
 	return len(fake.configureRoleArgsForCall)
 }
 
-func (fake *FakeAccessRoleService) ConfigureRoleCalls(stub func(context.Context, *v1alpha1.Bucket) error) {
+func (fake *FakeAccessRoleService) ConfigureRoleCalls(stub func(context.Context, *v1alpha1.Bucket, map[string]string) error) {
 	fake.configureRoleMutex.Lock()
 	defer fake.configureRoleMutex.Unlock()
 	fake.ConfigureRoleStub = stub
 }
 
-func (fake *FakeAccessRoleService) ConfigureRoleArgsForCall(i int) (context.Context, *v1alpha1.Bucket) {
+func (fake *FakeAccessRoleService) ConfigureRoleArgsForCall(i int) (context.Context, *v1alpha1.Bucket, map[string]string) {
 	fake.configureRoleMutex.RLock()
 	defer fake.configureRoleMutex.RUnlock()
 	argsForCall := fake.configureRoleArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
 func (fake *FakeAccessRoleService) ConfigureRoleReturns(result1 error) {
