@@ -20,18 +20,7 @@ require (
 	sigs.k8s.io/controller-runtime v0.16.3
 )
 
-require (
-	github.com/BurntSushi/toml v1.3.2 // indirect
-	github.com/sergi/go-diff v1.3.1 // indirect
-	golang.org/x/exp/typeparams v0.0.0-20231110203233-9a3e6036ecaa // indirect
-	golang.org/x/sync v0.5.0 // indirect
-	golang.org/x/telemetry v0.0.0-20231114163143-69313e640400 // indirect
-	golang.org/x/tools/gopls v0.14.2 // indirect
-	golang.org/x/vuln v1.0.1 // indirect
-	honnef.co/go/tools v0.4.6 // indirect
-	mvdan.cc/gofumpt v0.5.0 // indirect
-	mvdan.cc/xurls/v2 v2.5.0 // indirect
-)
+require golang.org/x/sync v0.5.0 // indirect
 
 require (
 	github.com/aws/aws-sdk-go v1.48.1
