@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -34,7 +35,10 @@ import (
 
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
 	"github.com/giantswarm/object-storage-operator/internal/controller"
-	"github.com/giantswarm/object-storage-operator/internal/pkg/managementcluster"
+	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
+	"github.com/giantswarm/object-storage-operator/internal/pkg/flags"
+	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage"
+	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage/cloud/aws"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -54,7 +58,7 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
-	var managementCluster = managementcluster.ManagementCluster{}
+	var managementCluster = flags.ManagementCluster{}
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -99,9 +103,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	var objectStorage objectstorage.ObjectStorageServiceFactory
+	var cluster cluster.ClusterGetter
+	switch managementCluster.Provider {
+	case "capa":
+		cluster = aws.AWSClusterGetter{}
+		objectStorage = aws.AWSObjectStorageService{}
+	default:
+		setupLog.Error(err, fmt.Sprintf("Unsupported provider %s", managementCluster.Provider))
+		os.Exit(1)
+	}
 	if err = (&controller.BucketReconciler{
-		Client:            mgr.GetClient(),
-		ManagementCluster: managementCluster,
+		Client:                      mgr.GetClient(),
+		ClusterGetter:               cluster,
+		ObjectStorageServiceFactory: objectStorage,
+		ManagementCluster:           managementCluster,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Bucket")
 		os.Exit(1)

@@ -18,7 +18,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/pkg/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -27,14 +26,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
-	managementcluster "github.com/giantswarm/object-storage-operator/internal/pkg/managementcluster"
+	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
+	"github.com/giantswarm/object-storage-operator/internal/pkg/flags"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage"
 )
 
 // BucketReconciler reconciles a Bucket object
 type BucketReconciler struct {
 	client.Client
-	managementcluster.ManagementCluster
+	cluster.ClusterGetter
+	objectstorage.ObjectStorageServiceFactory
+	flags.ManagementCluster
 }
 
 //+kubebuilder:rbac:groups=objectstorage.giantswarm.io,resources=buckets,verbs=get;list;watch;create;update;patch;delete
@@ -60,29 +62,20 @@ func (r BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	logger.WithValues("bucket", bucket.Spec.Name)
 
-	// Create the correct service implementation based on the provider
+	var cluster cluster.Cluster
+	cluster, err = r.ClusterGetter.GetCluster(ctx, r.Client, r.ManagementCluster.Name, r.ManagementCluster.Namespace, r.ManagementCluster.BaseDomain, r.ManagementCluster.Region)
+	if err != nil {
+		return ctrl.Result{}, errors.WithStack(err)
+	}
 	var objectStorageService objectstorage.ObjectStorageService
 	var accessRoleService objectstorage.AccessRoleService
-	switch r.ManagementCluster.Provider {
-	case "capa":
-		var cluster = managementcluster.CAPACluster{
-			ManagementCluster: r.ManagementCluster,
-		}
-		cluster.RoleToAssume, err = cluster.GetRoleArn(ctx, req, r.Client)
-		if err != nil {
-			return ctrl.Result{}, errors.WithStack(err)
-		}
-
-		objectStorageService, err = cluster.NewObjectStorageService(ctx, logger)
-		if err != nil {
-			return ctrl.Result{}, errors.WithStack(err)
-		}
-		accessRoleService, err = cluster.NewAccessRoleService(ctx, logger)
-		if err != nil {
-			return ctrl.Result{}, errors.WithStack(err)
-		}
-	default:
-		return ctrl.Result{}, errors.New(fmt.Sprintf("unsupported provider %s", r.ManagementCluster.Provider))
+	objectStorageService, err = r.NewObjectStorageService(ctx, logger, cluster)
+	if err != nil {
+		return ctrl.Result{}, errors.WithStack(err)
+	}
+	accessRoleService, err = r.NewAccessRoleService(ctx, logger, cluster)
+	if err != nil {
+		return ctrl.Result{}, errors.WithStack(err)
 	}
 
 	// Handle deleted clusters
