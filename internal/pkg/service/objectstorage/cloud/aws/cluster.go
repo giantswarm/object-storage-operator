@@ -11,6 +11,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+// AWSClusterGetter implements ClusterGetter Interface
+// It creates an AWSCluster object
 type AWSClusterGetter struct {
 }
 
@@ -89,6 +91,7 @@ func (c AWSClusterGetter) getClusterCR(ctx context.Context, cli client.Client, n
 	return cluster, errors.WithStack(err)
 }
 
+// AWSCluster implements Cluster Interface with AWS data
 type AWSCluster struct {
 	Name       string
 	Namespace  string

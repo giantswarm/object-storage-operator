@@ -6,6 +6,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -16,6 +17,7 @@ import (
 	"github.com/giantswarm/object-storage-operator/internal/controller"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster/clusterfakes"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/flags"
+	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage/cloud/aws"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage/objectstoragefakes"
 )
 
@@ -65,7 +67,9 @@ var _ = Describe("Bucket Reconciler", func() {
 		// creates the reconciler
 		BeforeEach(func() {
 			reconciler = controller.BucketReconciler{
-				Client: fakeClient,
+				Client:                      fakeClient,
+				ClusterGetter:               &fakeClusterGetter,
+				ObjectStorageServiceFactory: &serviceFactory,
 				ManagementCluster: flags.ManagementCluster{
 					Name:      "test-mc",
 					Namespace: "giantswarm",
@@ -107,6 +111,10 @@ var _ = Describe("Bucket Reconciler", func() {
 			})
 
 			When("the management cluster CR is missing", func() {
+				expectedError := errors.New("Missing management cluster AWSCluster CR")
+				BeforeEach(func() {
+					fakeClusterGetter.GetClusterReturns(nil, expectedError)
+				})
 				It("fails", func() {
 					Expect(reconcileErr).To(HaveOccurred())
 					var existingBucket v1alpha1.Bucket
@@ -116,6 +124,7 @@ var _ = Describe("Bucket Reconciler", func() {
 			})
 
 			When("the management cluster has no identity set", func() {
+				expectedError := errors.New("missing management cluster identify")
 				BeforeEach(func() {
 					cluster := &unstructured.Unstructured{
 						Object: map[string]interface{}{
@@ -131,6 +140,7 @@ var _ = Describe("Bucket Reconciler", func() {
 						},
 					}
 					_ = fakeClient.Create(ctx, cluster)
+					fakeClusterGetter.GetClusterReturns(nil, expectedError)
 				})
 				It("fails", func() {
 					Expect(reconcileErr).To(HaveOccurred())
@@ -141,6 +151,7 @@ var _ = Describe("Bucket Reconciler", func() {
 			})
 
 			When("management cluster identity is missing", func() {
+				expectedError := errors.New("Missing management cluster identity AWSClusterRoleIdentity CR")
 				BeforeEach(func() {
 					cluster := &unstructured.Unstructured{
 						Object: map[string]interface{}{
@@ -158,6 +169,7 @@ var _ = Describe("Bucket Reconciler", func() {
 						},
 					}
 					_ = fakeClient.Create(ctx, cluster)
+					fakeClusterGetter.GetClusterReturns(nil, expectedError)
 				})
 				It("fails", func() {
 					Expect(reconcileErr).To(HaveOccurred())
@@ -168,6 +180,7 @@ var _ = Describe("Bucket Reconciler", func() {
 			})
 
 			When("management cluster identity has no role arn", func() {
+				expectedError := errors.New("missing role arn")
 				BeforeEach(func() {
 					clusterIdentity := &unstructured.Unstructured{
 						Object: map[string]interface{}{
@@ -198,6 +211,8 @@ var _ = Describe("Bucket Reconciler", func() {
 						},
 					}
 					_ = fakeClient.Create(ctx, cluster)
+
+					fakeClusterGetter.GetClusterReturns(nil, expectedError)
 				})
 				It("fails", func() {
 					Expect(reconcileErr).To(HaveOccurred())
@@ -207,141 +222,150 @@ var _ = Describe("Bucket Reconciler", func() {
 				})
 			})
 		})
+	})
 
-		// When("the management cluster has an identity set", func() {
-		// 	// creates a dummy management cluster and management cluster identity
-		// 	BeforeEach(func() {
-		// 		clusterIdentity := &unstructured.Unstructured{
-		// 			Object: map[string]interface{}{
-		// 				"kind":       "AWSClusterRoleIdentity",
-		// 				"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta2",
-		// 				"metadata": map[string]interface{}{
-		// 					"name":      reconciler.ManagementCluster.Name,
-		// 					"namespace": reconciler.ManagementCluster.Namespace,
-		// 				},
-		// 				"spec": map[string]interface{}{
-		// 					//"roleARN": "arn:aws:iam::242036376510:role/giantswarm-golem-capa-controller",
-		// 					"roleARN": "role",
-		// 				},
-		// 			},
-		// 		}
-		// 		_ = fakeClient.Create(ctx, clusterIdentity)
+	When("the management cluster has an identity set", func() {
+		// creates a dummy management cluster and management cluster identity
+		BeforeEach(func() {
+			clusterIdentity := &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"kind":       "AWSClusterRoleIdentity",
+					"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta2",
+					"metadata": map[string]interface{}{
+						"name":      reconciler.ManagementCluster.Name,
+						"namespace": reconciler.ManagementCluster.Namespace,
+					},
+					"spec": map[string]interface{}{
+						"roleARN": "role",
+					},
+				},
+			}
+			_ = fakeClient.Create(ctx, clusterIdentity)
 
-		// 		cluster := &unstructured.Unstructured{
-		// 			Object: map[string]interface{}{
-		// 				"kind":       "AWSCluster",
-		// 				"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta2",
-		// 				"metadata": map[string]interface{}{
-		// 					"name":      reconciler.ManagementCluster.Name,
-		// 					"namespace": reconciler.ManagementCluster.Namespace,
-		// 				},
-		// 				"spec": map[string]interface{}{
-		// 					"identityRef": map[string]interface{}{
-		// 						"name": reconciler.ManagementCluster.Name,
-		// 					},
-		// 				},
-		// 			},
-		// 		}
-		// 		_ = fakeClient.Create(ctx, cluster)
-		// 	})
+			cluster := &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"kind":       "AWSCluster",
+					"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta2",
+					"metadata": map[string]interface{}{
+						"name":      reconciler.ManagementCluster.Name,
+						"namespace": reconciler.ManagementCluster.Namespace,
+					},
+					"spec": map[string]interface{}{
+						"identityRef": map[string]interface{}{
+							"name": reconciler.ManagementCluster.Name,
+						},
+					},
+				},
+			}
+			_ = fakeClient.Create(ctx, cluster)
 
-		// 	When("the bucket is being created/updated", func() {
-		// 		BeforeEach(func() {
-		// 			// creates dummy bucket
-		// 			bucket := v1alpha1.Bucket{
-		// 				ObjectMeta: metav1.ObjectMeta{
-		// 					Name:      BucketName,
-		// 					Namespace: BucketNamespace,
-		// 				},
-		// 				Spec: v1alpha1.BucketSpec{
-		// 					Name: BucketName,
-		// 				},
-		// 				Status: v1alpha1.BucketStatus{},
-		// 			}
-		// 			_ = fakeClient.Create(ctx, &bucket)
-		// 		})
+			var awsCluster = aws.AWSCluster{
+				Name:       reconciler.ManagementCluster.Name,
+				Namespace:  reconciler.ManagementCluster.Namespace,
+				BaseDomain: reconciler.ManagementCluster.BaseDomain,
+				Region:     reconciler.ManagementCluster.Region,
+				Role:       "role",
+			}
+			fakeClusterGetter.GetClusterReturns(awsCluster, nil)
+		})
 
-		// 		When("reconciling a s3 bucket we do not own", func() {
-		// 			expectedError := errors.New("bucket not owned")
-		// 			BeforeEach(func() {
-		// 				objectStorageService.ExistsBucketReturns(false, expectedError)
-		// 			})
+		When("the bucket is being created/updated", func() {
+			BeforeEach(func() {
+				// creates dummy bucket
+				bucket := v1alpha1.Bucket{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      BucketName,
+						Namespace: BucketNamespace,
+					},
+					Spec: v1alpha1.BucketSpec{
+						Name: BucketName,
+					},
+					Status: v1alpha1.BucketStatus{},
+				}
+				_ = fakeClient.Create(ctx, &bucket)
+			})
 
-		// 			It("failed", func() {
-		// 				Expect(reconcileErr).To(HaveOccurred())
-		// 				Expect(objectStorageService.ExistsBucketCallCount()).To(Equal(1))
-		// 				var existingBucket v1alpha1.Bucket
-		// 				_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
-		// 				Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
-		// 			})
-		// 		})
+			When("reconciling a s3 bucket we do not own", func() {
+				expectedError := errors.New("bucket not owned")
+				BeforeEach(func() {
+					objectStorageService.ExistsBucketReturns(false, expectedError)
+				})
 
-		// 		When("reconciling a new s3 bucket", func() {
-		// 			BeforeEach(func() {
-		// 				objectStorageService.ExistsBucketReturns(false, nil)
-		// 			})
+				It("failed", func() {
+					Expect(reconcileErr).To(HaveOccurred())
+					Expect(objectStorageService.ExistsBucketCallCount()).To(Equal(1))
+					var existingBucket v1alpha1.Bucket
+					_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
+					Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
+				})
+			})
 
-		// 			It("was created", func() {
-		// 				Expect(reconcileErr).ToNot(HaveOccurred())
-		// 				Expect(objectStorageService.ExistsBucketCallCount()).To(Equal(1))
-		// 				Expect(objectStorageService.CreateBucketCallCount()).To(Equal(1))
-		// 				Expect(objectStorageService.ConfigureBucketCallCount()).To(Equal(1))
-		// 				var existingBucket v1alpha1.Bucket
-		// 				_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
-		// 				Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
-		// 				Expect(existingBucket.Status.BucketID).To(Equal(BucketName))
-		// 				Expect(existingBucket.Status.BucketReady).To(BeTrue())
-		// 			})
-		// 		})
+			// 		When("reconciling a new s3 bucket", func() {
+			// 			BeforeEach(func() {
+			// 				objectStorageService.ExistsBucketReturns(false, nil)
+			// 			})
 
-		// 		When("reconciling an exiting s3 bucket", func() {
-		// 			BeforeEach(func() {
-		// 				objectStorageService.ExistsBucketReturns(true, nil)
-		// 			})
-		// 			It("was updated", func() {
-		// 				Expect(reconcileErr).ToNot(HaveOccurred())
-		// 				Expect(objectStorageService.ExistsBucketCallCount()).To(Equal(1))
-		// 				Expect(objectStorageService.ConfigureBucketCallCount()).To(Equal(1))
-		// 				var existingBucket v1alpha1.Bucket
-		// 				_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
-		// 				Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
-		// 				Expect(existingBucket.Status.BucketID).To(Equal(BucketName))
-		// 				Expect(existingBucket.Status.BucketReady).To(BeTrue())
-		// 			})
-		// 		})
+			// 			It("was created", func() {
+			// 				Expect(reconcileErr).ToNot(HaveOccurred())
+			// 				Expect(objectStorageService.ExistsBucketCallCount()).To(Equal(1))
+			// 				Expect(objectStorageService.CreateBucketCallCount()).To(Equal(1))
+			// 				Expect(objectStorageService.ConfigureBucketCallCount()).To(Equal(1))
+			// 				var existingBucket v1alpha1.Bucket
+			// 				_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
+			// 				Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
+			// 				Expect(existingBucket.Status.BucketID).To(Equal(BucketName))
+			// 				Expect(existingBucket.Status.BucketReady).To(BeTrue())
+			// 			})
+			// 		})
 
-		// 		When("there is an error trying to create the bucket being reconciled", func() {
-		// 			expectedError := errors.New("failed creating the Bucket")
+			// 		When("reconciling an exiting s3 bucket", func() {
+			// 			BeforeEach(func() {
+			// 				objectStorageService.ExistsBucketReturns(true, nil)
+			// 			})
+			// 			It("was updated", func() {
+			// 				Expect(reconcileErr).ToNot(HaveOccurred())
+			// 				Expect(objectStorageService.ExistsBucketCallCount()).To(Equal(1))
+			// 				Expect(objectStorageService.ConfigureBucketCallCount()).To(Equal(1))
+			// 				var existingBucket v1alpha1.Bucket
+			// 				_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
+			// 				Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
+			// 				Expect(existingBucket.Status.BucketID).To(Equal(BucketName))
+			// 				Expect(existingBucket.Status.BucketReady).To(BeTrue())
+			// 			})
+			// 		})
 
-		// 			BeforeEach(func() {
-		// 				objectStorageService.CreateBucketReturns(expectedError)
-		// 			})
+			// 		When("there is an error trying to create the bucket being reconciled", func() {
+			// 			expectedError := errors.New("failed creating the Bucket")
 
-		// 			It("returns the error", func() {
-		// 				var existingBucket v1alpha1.Bucket
-		// 				_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
-		// 				Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
-		// 				Expect(reconcileErr).To(HaveOccurred())
-		// 				Expect(reconcileErr).Should(MatchError(expectedError))
-		// 			})
-		// 		})
+			// 			BeforeEach(func() {
+			// 				objectStorageService.CreateBucketReturns(expectedError)
+			// 			})
 
-		// 		When("there is an error trying to configure the bucket being reconciled", func() {
-		// 			expectedError := errors.New("failed configuring the Bucket")
+			// 			It("returns the error", func() {
+			// 				var existingBucket v1alpha1.Bucket
+			// 				_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
+			// 				Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
+			// 				Expect(reconcileErr).To(HaveOccurred())
+			// 				Expect(reconcileErr).Should(MatchError(expectedError))
+			// 			})
+			// 		})
 
-		// 			BeforeEach(func() {
-		// 				objectStorageService.ConfigureBucketReturns(expectedError)
-		// 			})
+			// 		When("there is an error trying to configure the bucket being reconciled", func() {
+			// 			expectedError := errors.New("failed configuring the Bucket")
 
-		// 			It("returns the error", func() {
-		// 				var existingBucket v1alpha1.Bucket
-		// 				_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
-		// 				Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
-		// 				Expect(reconcileErr).To(HaveOccurred())
-		// 				Expect(reconcileErr).Should(MatchError(expectedError))
-		// 			})
-		// 		})
-		// 	})
+			// 			BeforeEach(func() {
+			// 				objectStorageService.ConfigureBucketReturns(expectedError)
+			// 			})
+
+			// 			It("returns the error", func() {
+			// 				var existingBucket v1alpha1.Bucket
+			// 				_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
+			// 				Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
+			// 				Expect(reconcileErr).To(HaveOccurred())
+			// 				Expect(reconcileErr).Should(MatchError(expectedError))
+			// 			})
+			// 		})
+		})
 
 		// 	When("the bucket is being deleted", func() {
 		// 		BeforeEach(func() {
@@ -410,44 +434,44 @@ var _ = Describe("Bucket Reconciler", func() {
 		// 			})
 		// 		})
 		// 	})
-		// })
 	})
-
-	var _ = Describe("Unknown provider", func() {
-		// creates the reconciler
-		BeforeEach(func() {
-			// creates dummy bucket
-			bucket := v1alpha1.Bucket{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      BucketName,
-					Namespace: BucketNamespace,
-				},
-				Spec: v1alpha1.BucketSpec{
-					Name: BucketName,
-				},
-				Status: v1alpha1.BucketStatus{},
-			}
-			_ = fakeClient.Create(ctx, &bucket)
-
-			reconciler = controller.BucketReconciler{
-				Client: fakeClient,
-				ManagementCluster: flags.ManagementCluster{
-					Name:      "test-mc",
-					Namespace: "giantswarm",
-					Provider:  "unknown",
-					Region:    "eu-central-1",
-				},
-			}
-
-			request := ctrl.Request{NamespacedName: bucketKey}
-			_, reconcileErr = reconciler.Reconcile(ctx, request)
-		})
-
-		When("reconciling", func() {
-			It("fails", func() {
-				Expect(reconcileErr).To(HaveOccurred())
-			})
-		})
-	})
-
 })
+
+// var _ = Describe("Unknown provider", func() {
+// 	// creates the reconciler
+// 	BeforeEach(func() {
+// 		// creates dummy bucket
+// 		bucket := v1alpha1.Bucket{
+// 			ObjectMeta: metav1.ObjectMeta{
+// 				Name:      BucketName,
+// 				Namespace: BucketNamespace,
+// 			},
+// 			Spec: v1alpha1.BucketSpec{
+// 				Name: BucketName,
+// 			},
+// 			Status: v1alpha1.BucketStatus{},
+// 		}
+// 		_ = fakeClient.Create(ctx, &bucket)
+
+// 		reconciler = controller.BucketReconciler{
+// 			Client:                      fakeClient,
+// 			ClusterGetter:               &fakeClusterGetter,
+// 			ObjectStorageServiceFactory: &serviceFactory,
+// 			ManagementCluster: flags.ManagementCluster{
+// 				Name:      "test-mc",
+// 				Namespace: "giantswarm",
+// 				Provider:  "unknown",
+// 				Region:    "eu-central-1",
+// 			},
+// 		}
+
+// 		request := ctrl.Request{NamespacedName: bucketKey}
+// 		_, reconcileErr = reconciler.Reconcile(ctx, request)
+// 	})
+
+// 	When("reconciling", func() {
+// 		It("fails", func() {
+// 			Expect(reconcileErr).To(HaveOccurred())
+// 		})
+// 	})
+// })

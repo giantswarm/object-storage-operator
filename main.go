@@ -104,10 +104,10 @@ func main() {
 	}
 
 	var objectStorage objectstorage.ObjectStorageServiceFactory
-	var cluster cluster.ClusterGetter
+	var clusterGetter cluster.ClusterGetter
 	switch managementCluster.Provider {
 	case "capa":
-		cluster = aws.AWSClusterGetter{}
+		clusterGetter = aws.AWSClusterGetter{}
 		objectStorage = aws.AWSObjectStorageService{}
 	default:
 		setupLog.Error(err, fmt.Sprintf("Unsupported provider %s", managementCluster.Provider))
@@ -115,7 +115,7 @@ func main() {
 	}
 	if err = (&controller.BucketReconciler{
 		Client:                      mgr.GetClient(),
-		ClusterGetter:               cluster,
+		ClusterGetter:               clusterGetter,
 		ObjectStorageServiceFactory: objectStorage,
 		ManagementCluster:           managementCluster,
 	}).SetupWithManager(mgr); err != nil {
