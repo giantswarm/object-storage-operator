@@ -5,8 +5,9 @@ import (
 	"context"
 	"sync"
 
-	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
 )
 
 type FakeClusterGetter struct {

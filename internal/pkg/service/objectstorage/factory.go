@@ -3,8 +3,9 @@ package objectstorage
 import (
 	"context"
 
-	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
 	"github.com/go-logr/logr"
+
+	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
 )
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . ObjectStorageServiceFactory

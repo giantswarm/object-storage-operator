@@ -3,12 +3,13 @@ package aws
 import (
 	"context"
 
-	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
 )
 
 // AWSClusterGetter implements ClusterGetter Interface

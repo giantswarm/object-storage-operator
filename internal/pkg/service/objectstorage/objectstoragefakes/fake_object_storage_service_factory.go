@@ -5,9 +5,10 @@ import (
 	"context"
 	"sync"
 
+	"github.com/go-logr/logr"
+
 	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage"
-	"github.com/go-logr/logr"
 )
 
 type FakeObjectStorageServiceFactory struct {

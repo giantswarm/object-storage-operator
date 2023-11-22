@@ -10,10 +10,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/aws/aws-sdk-go/aws/arn"
-	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
-	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
+
+	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
+	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage"
 )
 
 type AWSObjectStorageService struct {
