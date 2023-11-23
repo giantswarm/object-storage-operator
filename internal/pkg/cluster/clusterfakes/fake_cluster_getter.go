@@ -5,19 +5,14 @@ import (
 	"context"
 	"sync"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
-	"github.com/giantswarm/object-storage-operator/internal/pkg/flags"
 )
 
 type FakeClusterGetter struct {
-	GetClusterStub        func(context.Context, client.Client, flags.ManagementCluster) (cluster.Cluster, error)
+	GetClusterStub        func(context.Context) (cluster.Cluster, error)
 	getClusterMutex       sync.RWMutex
 	getClusterArgsForCall []struct {
 		arg1 context.Context
-		arg2 client.Client
-		arg3 flags.ManagementCluster
 	}
 	getClusterReturns struct {
 		result1 cluster.Cluster
@@ -31,20 +26,18 @@ type FakeClusterGetter struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeClusterGetter) GetCluster(arg1 context.Context, arg2 client.Client, arg3 flags.ManagementCluster) (cluster.Cluster, error) {
+func (fake *FakeClusterGetter) GetCluster(arg1 context.Context) (cluster.Cluster, error) {
 	fake.getClusterMutex.Lock()
 	ret, specificReturn := fake.getClusterReturnsOnCall[len(fake.getClusterArgsForCall)]
 	fake.getClusterArgsForCall = append(fake.getClusterArgsForCall, struct {
 		arg1 context.Context
-		arg2 client.Client
-		arg3 flags.ManagementCluster
-	}{arg1, arg2, arg3})
+	}{arg1})
 	stub := fake.GetClusterStub
 	fakeReturns := fake.getClusterReturns
-	fake.recordInvocation("GetCluster", []interface{}{arg1, arg2, arg3})
+	fake.recordInvocation("GetCluster", []interface{}{arg1})
 	fake.getClusterMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2, arg3)
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -58,17 +51,17 @@ func (fake *FakeClusterGetter) GetClusterCallCount() int {
 	return len(fake.getClusterArgsForCall)
 }
 
-func (fake *FakeClusterGetter) GetClusterCalls(stub func(context.Context, client.Client, flags.ManagementCluster) (cluster.Cluster, error)) {
+func (fake *FakeClusterGetter) GetClusterCalls(stub func(context.Context) (cluster.Cluster, error)) {
 	fake.getClusterMutex.Lock()
 	defer fake.getClusterMutex.Unlock()
 	fake.GetClusterStub = stub
 }
 
-func (fake *FakeClusterGetter) GetClusterArgsForCall(i int) (context.Context, client.Client, flags.ManagementCluster) {
+func (fake *FakeClusterGetter) GetClusterArgsForCall(i int) context.Context {
 	fake.getClusterMutex.RLock()
 	defer fake.getClusterMutex.RUnlock()
 	argsForCall := fake.getClusterArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+	return argsForCall.arg1
 }
 
 func (fake *FakeClusterGetter) GetClusterReturns(result1 cluster.Cluster, result2 error) {

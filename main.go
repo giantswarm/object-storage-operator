@@ -107,7 +107,10 @@ func main() {
 	var clusterGetter cluster.ClusterGetter
 	switch managementCluster.Provider {
 	case "capa":
-		clusterGetter = aws.AWSClusterGetter{}
+		clusterGetter = aws.AWSClusterGetter{
+			Client:            mgr.GetClient(),
+			ManagementCluster: managementCluster,
+		}
 		objectStorage = aws.AWSObjectStorageService{}
 	default:
 		setupLog.Error(err, fmt.Sprintf("Unsupported provider %s", managementCluster.Provider))

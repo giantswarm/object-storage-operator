@@ -36,7 +36,6 @@ var _ = Describe("Bucket Reconciler", func() {
 		fakeClient           client.Client
 		serviceFactory       objectstoragefakes.FakeObjectStorageServiceFactory
 		fakeClusterGetter    clusterfakes.FakeClusterGetter
-		fakeCluster          clusterfakes.FakeCluster
 		objectStorageService objectstoragefakes.FakeObjectStorageService
 		accessRoleService    objectstoragefakes.FakeAccessRoleService
 		bucketKey            = client.ObjectKey{
@@ -55,12 +54,10 @@ var _ = Describe("Bucket Reconciler", func() {
 		fakeClient = fake.NewClientBuilder().WithStatusSubresource(&v1alpha1.Bucket{}).Build()
 		serviceFactory = objectstoragefakes.FakeObjectStorageServiceFactory{}
 		fakeClusterGetter = clusterfakes.FakeClusterGetter{}
-		fakeCluster = clusterfakes.FakeCluster{}
 		objectStorageService = objectstoragefakes.FakeObjectStorageService{}
 		accessRoleService = objectstoragefakes.FakeAccessRoleService{}
 		serviceFactory.NewObjectStorageServiceReturns(&objectStorageService, nil)
 		serviceFactory.NewAccessRoleServiceReturns(&accessRoleService, nil)
-		fakeClusterGetter.GetClusterReturns(&fakeCluster, nil)
 	})
 
 	var _ = Describe("CAPA", func() {

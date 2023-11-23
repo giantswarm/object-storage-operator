@@ -62,7 +62,7 @@ func (r BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	logger.WithValues("bucket", bucket.Spec.Name)
 
-	cluster, err := r.ClusterGetter.GetCluster(ctx, r.Client, r.ManagementCluster)
+	cluster, err := r.ClusterGetter.GetCluster(ctx)
 	if err != nil {
 		return ctrl.Result{}, errors.WithStack(err)
 	}

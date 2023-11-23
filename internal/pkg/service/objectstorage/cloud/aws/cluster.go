@@ -16,6 +16,8 @@ import (
 // AWSClusterGetter implements ClusterGetter Interface
 // It creates an AWSCluster object
 type AWSClusterGetter struct {
+	Client            client.Client
+	ManagementCluster flags.ManagementCluster
 }
 
 const (
@@ -26,10 +28,10 @@ const (
 	VersionClusterIdentity = "v1beta2"
 )
 
-func (c AWSClusterGetter) GetCluster(ctx context.Context, cli client.Client, managementCluster flags.ManagementCluster) (cluster.Cluster, error) {
+func (c AWSClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, error) {
 	logger := log.FromContext(ctx)
 
-	cluster, err := c.getClusterCR(ctx, cli, managementCluster.Name, managementCluster.Namespace)
+	cluster, err := c.getClusterCR(ctx)
 	if err != nil {
 		logger.Error(err, "Missing management cluster AWSCluster CR")
 		return nil, errors.WithStack(err)
@@ -44,7 +46,7 @@ func (c AWSClusterGetter) GetCluster(ctx context.Context, cli client.Client, man
 		logger.Info("Missing identity, skipping")
 		return nil, errors.New("missing management cluster identify")
 	}
-	clusterIdentity, err := c.getClusterCRIdentiy(ctx, cli, clusterIdentityName, managementCluster.Namespace)
+	clusterIdentity, err := c.getClusterCRIdentiy(ctx, clusterIdentityName)
 	if err != nil {
 		logger.Error(err, "Missing management cluster identity AWSClusterRoleIdentity CR")
 		return nil, errors.WithStack(err)
@@ -70,30 +72,30 @@ func (c AWSClusterGetter) GetCluster(ctx context.Context, cli client.Client, man
 	}
 
 	return AWSCluster{
-		Name:       managementCluster.Name,
-		Namespace:  managementCluster.Namespace,
-		BaseDomain: managementCluster.BaseDomain,
-		Region:     managementCluster.Region,
+		Name:       c.ManagementCluster.Name,
+		Namespace:  c.ManagementCluster.Namespace,
+		BaseDomain: c.ManagementCluster.BaseDomain,
+		Region:     c.ManagementCluster.Region,
 		Role:       roleArn,
 		Tags:       clusterTags,
 	}, nil
 }
 
-func (c AWSClusterGetter) getClusterCR(ctx context.Context, cli client.Client, name string, namespace string) (*unstructured.Unstructured, error) {
+func (c AWSClusterGetter) getClusterCR(ctx context.Context) (*unstructured.Unstructured, error) {
 	cluster := &unstructured.Unstructured{}
 	cluster.SetGroupVersionKind(schema.GroupVersionKind{
 		Group:   Group,
 		Kind:    KindCluster,
 		Version: VersionCluster,
 	})
-	err := cli.Get(ctx, client.ObjectKey{
-		Name:      name,
-		Namespace: namespace,
+	err := c.Client.Get(ctx, client.ObjectKey{
+		Name:      c.ManagementCluster.Name,
+		Namespace: c.ManagementCluster.Namespace,
 	}, cluster)
 	return cluster, errors.WithStack(err)
 }
 
-func (c AWSClusterGetter) getClusterCRIdentiy(ctx context.Context, cli client.Client, clusterIdentityName string, namespace string) (*unstructured.Unstructured, error) {
+func (c AWSClusterGetter) getClusterCRIdentiy(ctx context.Context, clusterIdentityName string) (*unstructured.Unstructured, error) {
 	clusterIdentity := &unstructured.Unstructured{}
 	clusterIdentity.SetGroupVersionKind(schema.GroupVersionKind{
 		Group:   Group,
@@ -101,9 +103,9 @@ func (c AWSClusterGetter) getClusterCRIdentiy(ctx context.Context, cli client.Cl
 		Version: VersionClusterIdentity,
 	})
 
-	err := cli.Get(ctx, client.ObjectKey{
+	err := c.Client.Get(ctx, client.ObjectKey{
 		Name:      clusterIdentityName,
-		Namespace: namespace,
+		Namespace: c.ManagementCluster.Namespace,
 	}, clusterIdentity)
 	return clusterIdentity, errors.WithStack(err)
 }
