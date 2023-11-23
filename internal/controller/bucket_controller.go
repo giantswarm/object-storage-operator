@@ -62,18 +62,15 @@ func (r BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	logger.WithValues("bucket", bucket.Spec.Name)
 
-	var cluster cluster.Cluster
-	cluster, err = r.ClusterGetter.GetCluster(ctx, r.Client, r.ManagementCluster.Name, r.ManagementCluster.Namespace, r.ManagementCluster.BaseDomain, r.ManagementCluster.Region)
+	cluster, err := r.ClusterGetter.GetCluster(ctx, r.Client, r.ManagementCluster)
 	if err != nil {
 		return ctrl.Result{}, errors.WithStack(err)
 	}
-	var objectStorageService objectstorage.ObjectStorageService
-	var accessRoleService objectstorage.AccessRoleService
-	objectStorageService, err = r.NewObjectStorageService(ctx, logger, cluster)
+	objectStorageService, err := r.NewObjectStorageService(ctx, logger, cluster)
 	if err != nil {
 		return ctrl.Result{}, errors.WithStack(err)
 	}
-	accessRoleService, err = r.NewAccessRoleService(ctx, logger, cluster)
+	accessRoleService, err := r.NewAccessRoleService(ctx, logger, cluster)
 	if err != nil {
 		return ctrl.Result{}, errors.WithStack(err)
 	}

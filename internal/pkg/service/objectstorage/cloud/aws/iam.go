@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
+	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
 )
 
 type IAMAccessRoleServiceAdapter struct {
@@ -24,13 +25,13 @@ type IAMAccessRoleServiceAdapter struct {
 	clusterName string
 }
 
-func NewIamService(iamClient *iam.Client, logger logr.Logger, accountId string, baseDomain string, clusterName string) IAMAccessRoleServiceAdapter {
+func NewIamService(iamClient *iam.Client, logger logr.Logger, accountId string, cluster cluster.Cluster) IAMAccessRoleServiceAdapter {
 	return IAMAccessRoleServiceAdapter{
 		iamClient:   iamClient,
 		logger:      logger,
 		accountId:   accountId,
-		baseDomain:  baseDomain,
-		clusterName: clusterName,
+		baseDomain:  cluster.GetBaseDomain(),
+		clusterName: cluster.GetName(),
 	}
 }
 
@@ -80,7 +81,7 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 		}
 	}
 
-	trustPolicy := templateTrustPolicy(s.accountId, s.baseDomain, s.clusterName, bucket)
+	trustPolicy := s.templateTrustPolicy(bucket)
 
 	if role == nil {
 		_, err := s.iamClient.CreateRole(ctx, &iam.CreateRoleInput{
@@ -250,15 +251,15 @@ func (s *IAMAccessRoleServiceAdapter) cleanAttachedPolicies(ctx context.Context,
 	return nil
 }
 
-func templateRolePolicy(bucket *v1alpha1.Bucket) string {
-	return strings.ReplaceAll(rolePolicy, "@BUCKET_NAME@", bucket.Spec.Name)
-}
-
-func templateTrustPolicy(accountId string, baseDomain string, clusterName string, bucket *v1alpha1.Bucket) string {
-	policy := strings.ReplaceAll(trustIdentityPolicy, "@CLOUD_DOMAIN@", baseDomain)
-	policy = strings.ReplaceAll(policy, "@INSTALLATION@", clusterName)
-	policy = strings.ReplaceAll(policy, "@ACCOUNT_ID@", accountId)
+func (s IAMAccessRoleServiceAdapter) templateTrustPolicy(bucket *v1alpha1.Bucket) string {
+	policy := strings.ReplaceAll(trustIdentityPolicy, "@CLOUD_DOMAIN@", s.baseDomain)
+	policy = strings.ReplaceAll(policy, "@INSTALLATION@", s.clusterName)
+	policy = strings.ReplaceAll(policy, "@ACCOUNT_ID@", s.accountId)
 	policy = strings.ReplaceAll(policy, "@SERVICE_ACCOUNT_NAMESPACE@", bucket.Spec.AccessRole.ServiceAccountNamespace)
 	policy = strings.ReplaceAll(policy, "@SERVICE_ACCOUNT_NAME@", bucket.Spec.AccessRole.ServiceAccountName)
 	return policy
+}
+
+func templateRolePolicy(bucket *v1alpha1.Bucket) string {
+	return strings.ReplaceAll(rolePolicy, "@BUCKET_NAME@", bucket.Spec.Name)
 }

@@ -10,6 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
+	"github.com/giantswarm/object-storage-operator/internal/pkg/flags"
 )
 
 // AWSClusterGetter implements ClusterGetter Interface
@@ -25,10 +26,10 @@ const (
 	VersionClusterIdentity = "v1beta2"
 )
 
-func (c AWSClusterGetter) GetCluster(ctx context.Context, cli client.Client, name string, namespace string, baseDomain string, region string) (cluster.Cluster, error) {
+func (c AWSClusterGetter) GetCluster(ctx context.Context, cli client.Client, managementCluster flags.ManagementCluster) (cluster.Cluster, error) {
 	logger := log.FromContext(ctx)
 
-	cluster, err := c.getClusterCR(ctx, cli, name, namespace)
+	cluster, err := c.getClusterCR(ctx, cli, managementCluster.Name, managementCluster.Namespace)
 	if err != nil {
 		logger.Error(err, "Missing management cluster AWSCluster CR")
 		return nil, errors.WithStack(err)
@@ -43,7 +44,7 @@ func (c AWSClusterGetter) GetCluster(ctx context.Context, cli client.Client, nam
 		logger.Info("Missing identity, skipping")
 		return nil, errors.New("missing management cluster identify")
 	}
-	clusterIdentity, err := c.getClusterCRIdentiy(ctx, cli, clusterIdentityName, namespace)
+	clusterIdentity, err := c.getClusterCRIdentiy(ctx, cli, clusterIdentityName, managementCluster.Namespace)
 	if err != nil {
 		logger.Error(err, "Missing management cluster identity AWSClusterRoleIdentity CR")
 		return nil, errors.WithStack(err)
@@ -69,10 +70,10 @@ func (c AWSClusterGetter) GetCluster(ctx context.Context, cli client.Client, nam
 	}
 
 	return AWSCluster{
-		Name:       name,
-		Namespace:  namespace,
-		BaseDomain: baseDomain,
-		Region:     region,
+		Name:       managementCluster.Name,
+		Namespace:  managementCluster.Namespace,
+		BaseDomain: managementCluster.BaseDomain,
+		Region:     managementCluster.Region,
 		Role:       roleArn,
 		Tags:       clusterTags,
 	}, nil

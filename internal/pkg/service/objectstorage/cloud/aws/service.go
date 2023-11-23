@@ -4,12 +4,12 @@ import (
 	"context"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
-	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 
@@ -36,7 +36,7 @@ func (s AWSObjectStorageService) NewAccessRoleService(ctx context.Context, logge
 		return nil, errors.WithStack(err)
 	}
 
-	return NewIamService(iam.NewFromConfig(cfg), logger, parsedRole.AccountID, cluster.GetBaseDomain(), cluster.GetName()), nil
+	return NewIamService(iam.NewFromConfig(cfg), logger, parsedRole.AccountID, cluster), nil
 }
 
 func (s AWSObjectStorageService) NewObjectStorageService(ctx context.Context, logger logr.Logger, cluster cluster.Cluster) (objectstorage.ObjectStorageService, error) {
