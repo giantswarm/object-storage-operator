@@ -14,22 +14,24 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
-	"github.com/giantswarm/object-storage-operator/internal/pkg/managementcluster"
+	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
 )
 
 type IAMAccessRoleServiceAdapter struct {
-	iamClient         *iam.Client
-	logger            logr.Logger
-	accountId         string
-	managementCluster managementcluster.ManagementCluster
+	iamClient   *iam.Client
+	logger      logr.Logger
+	accountId   string
+	baseDomain  string
+	clusterName string
 }
 
-func NewIamService(iamClient *iam.Client, logger logr.Logger, accountId string, managementCluster managementcluster.ManagementCluster) IAMAccessRoleServiceAdapter {
+func NewIamService(iamClient *iam.Client, logger logr.Logger, accountId string, cluster cluster.Cluster) IAMAccessRoleServiceAdapter {
 	return IAMAccessRoleServiceAdapter{
-		iamClient:         iamClient,
-		logger:            logger,
-		accountId:         accountId,
-		managementCluster: managementCluster,
+		iamClient:   iamClient,
+		logger:      logger,
+		accountId:   accountId,
+		baseDomain:  cluster.GetBaseDomain(),
+		clusterName: cluster.GetName(),
 	}
 }
 
@@ -78,7 +80,9 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 			tags = append(tags, types.Tag{Key: &key, Value: &value})
 		}
 	}
-	trustPolicy := templateTrustPolicy(s.accountId, s.managementCluster, bucket)
+
+	trustPolicy := s.templateTrustPolicy(bucket)
+
 	if role == nil {
 		_, err := s.iamClient.CreateRole(ctx, &iam.CreateRoleInput{
 			RoleName:                 aws.String(roleName),
@@ -247,15 +251,15 @@ func (s *IAMAccessRoleServiceAdapter) cleanAttachedPolicies(ctx context.Context,
 	return nil
 }
 
-func templateRolePolicy(bucket *v1alpha1.Bucket) string {
-	return strings.ReplaceAll(rolePolicy, "@BUCKET_NAME@", bucket.Spec.Name)
-}
-
-func templateTrustPolicy(accountId string, managementCluster managementcluster.ManagementCluster, bucket *v1alpha1.Bucket) string {
-	policy := strings.ReplaceAll(trustIdentityPolicy, "@CLOUD_DOMAIN@", managementCluster.BaseDomain)
-	policy = strings.ReplaceAll(policy, "@INSTALLATION@", managementCluster.Name)
-	policy = strings.ReplaceAll(policy, "@ACCOUNT_ID@", accountId)
+func (s IAMAccessRoleServiceAdapter) templateTrustPolicy(bucket *v1alpha1.Bucket) string {
+	policy := strings.ReplaceAll(trustIdentityPolicy, "@CLOUD_DOMAIN@", s.baseDomain)
+	policy = strings.ReplaceAll(policy, "@INSTALLATION@", s.clusterName)
+	policy = strings.ReplaceAll(policy, "@ACCOUNT_ID@", s.accountId)
 	policy = strings.ReplaceAll(policy, "@SERVICE_ACCOUNT_NAMESPACE@", bucket.Spec.AccessRole.ServiceAccountNamespace)
 	policy = strings.ReplaceAll(policy, "@SERVICE_ACCOUNT_NAME@", bucket.Spec.AccessRole.ServiceAccountName)
 	return policy
+}
+
+func templateRolePolicy(bucket *v1alpha1.Bucket) string {
+	return strings.ReplaceAll(rolePolicy, "@BUCKET_NAME@", bucket.Spec.Name)
 }

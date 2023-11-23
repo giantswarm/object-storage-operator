@@ -18,26 +18,25 @@ package controller
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/pkg/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
-	managementcluster "github.com/giantswarm/object-storage-operator/internal/pkg/managementcluster"
+	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
+	"github.com/giantswarm/object-storage-operator/internal/pkg/flags"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage"
 )
 
 // BucketReconciler reconciles a Bucket object
 type BucketReconciler struct {
 	client.Client
+	cluster.ClusterGetter
 	objectstorage.ObjectStorageServiceFactory
-	managementcluster.ManagementCluster
+	flags.ManagementCluster
 }
 
 //+kubebuilder:rbac:groups=objectstorage.giantswarm.io,resources=buckets,verbs=get;list;watch;create;update;patch;delete
@@ -63,39 +62,17 @@ func (r BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	logger.WithValues("bucket", bucket.Spec.Name)
 
-	// Create the correct service implementation based on the provider
-	var objectStorageService objectstorage.ObjectStorageService
-	var accessRoleService objectstorage.AccessRoleService
-	var additionalTags map[string]string
-	switch r.ManagementCluster.Provider {
-	case "capa":
-		cluster, err := r.getCluster(ctx)
-		if err != nil {
-			logger.Error(err, "Missing management cluster AWSCluster CR")
-			return ctrl.Result{}, errors.WithStack(err)
-		}
-
-		roleArn, err := r.getRoleArn(ctx, cluster)
-		if err != nil {
-			return ctrl.Result{}, errors.WithStack(err)
-		}
-
-		additionalTags, err = r.getClusterAdditionalTags(ctx, cluster)
-		if err != nil {
-			return ctrl.Result{}, errors.WithStack(err)
-		}
-
-		objectStorageService, err = r.ObjectStorageServiceFactory.NewS3Service(ctx, logger, roleArn, r.ManagementCluster)
-		if err != nil {
-			return ctrl.Result{}, errors.WithStack(err)
-		}
-
-		accessRoleService, err = r.ObjectStorageServiceFactory.NewIAMService(ctx, logger, roleArn, r.ManagementCluster)
-		if err != nil {
-			return ctrl.Result{}, errors.WithStack(err)
-		}
-	default:
-		return ctrl.Result{}, errors.New(fmt.Sprintf("unsupported provider %s", r.ManagementCluster.Provider))
+	cluster, err := r.ClusterGetter.GetCluster(ctx)
+	if err != nil {
+		return ctrl.Result{}, errors.WithStack(err)
+	}
+	objectStorageService, err := r.NewObjectStorageService(ctx, logger, cluster)
+	if err != nil {
+		return ctrl.Result{}, errors.WithStack(err)
+	}
+	accessRoleService, err := r.NewAccessRoleService(ctx, logger, cluster)
+	if err != nil {
+		return ctrl.Result{}, errors.WithStack(err)
 	}
 
 	// Handle deleted clusters
@@ -104,7 +81,7 @@ func (r BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 
 	// Handle non-deleted clusters
-	return r.reconcileNormal(ctx, objectStorageService, accessRoleService, bucket, additionalTags)
+	return r.reconcileNormal(ctx, objectStorageService, accessRoleService, bucket, cluster.GetTags())
 }
 
 // reconcileCreate creates the s3 bucket.
@@ -204,74 +181,4 @@ func (r BucketReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Bucket{}).
 		Complete(r)
-}
-
-func (r BucketReconciler) getCluster(ctx context.Context) (*unstructured.Unstructured, error) {
-	cluster := &unstructured.Unstructured{}
-	cluster.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "infrastructure.cluster.x-k8s.io",
-		Kind:    "AWSCluster",
-		Version: "v1beta2",
-	})
-
-	err := r.Client.Get(ctx, client.ObjectKey{
-		Name:      r.ManagementCluster.Name,
-		Namespace: r.ManagementCluster.Namespace,
-	}, cluster)
-	return cluster, errors.WithStack(err)
-}
-
-func (r BucketReconciler) getClusterAdditionalTags(ctx context.Context, cluster *unstructured.Unstructured) (map[string]string, error) {
-	logger := log.FromContext(ctx)
-
-	clusterTags, found, err := unstructured.NestedStringMap(cluster.Object, "spec", "additionalTags")
-	if err != nil {
-		logger.Error(err, "additional tags are not a map")
-		return map[string]string{}, errors.WithStack(err)
-	}
-	if !found || len(clusterTags) == 0 {
-		logger.Info("No cluster tags found")
-		return map[string]string{}, nil
-	}
-	return clusterTags, nil
-}
-
-func (r BucketReconciler) getRoleArn(ctx context.Context, cluster *unstructured.Unstructured) (string, error) {
-	logger := log.FromContext(ctx)
-
-	clusterIdentityName, found, err := unstructured.NestedString(cluster.Object, "spec", "identityRef", "name")
-	if err != nil {
-		logger.Error(err, "Identity name is not a string")
-		return "", errors.WithStack(err)
-	}
-	if !found || clusterIdentityName == "" {
-		logger.Info("Missing identity, skipping")
-		return "", errors.New("missing management cluster identify")
-	}
-
-	clusterIdentity := &unstructured.Unstructured{}
-	clusterIdentity.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "infrastructure.cluster.x-k8s.io",
-		Kind:    "AWSClusterRoleIdentity",
-		Version: "v1beta2",
-	})
-
-	err = r.Client.Get(ctx, client.ObjectKey{
-		Name:      clusterIdentityName,
-		Namespace: cluster.GetNamespace(),
-	}, clusterIdentity)
-	if err != nil {
-		logger.Error(err, "Missing management cluster identity AWSClusterRoleIdentity CR")
-		return "", errors.WithStack(err)
-	}
-
-	roleArn, found, err := unstructured.NestedString(clusterIdentity.Object, "spec", "roleARN")
-	if err != nil {
-		logger.Error(err, "Role arn is not a string")
-		return "", errors.WithStack(err)
-	}
-	if !found {
-		return "", errors.New("missing role arn")
-	}
-	return roleArn, nil
 }

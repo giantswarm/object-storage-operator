@@ -15,7 +15,9 @@ import (
 
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
 	"github.com/giantswarm/object-storage-operator/internal/controller"
-	"github.com/giantswarm/object-storage-operator/internal/pkg/managementcluster"
+	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster/clusterfakes"
+	"github.com/giantswarm/object-storage-operator/internal/pkg/flags"
+	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage/cloud/aws"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage/objectstoragefakes"
 )
 
@@ -33,6 +35,7 @@ var _ = Describe("Bucket Reconciler", func() {
 
 		fakeClient           client.Client
 		serviceFactory       objectstoragefakes.FakeObjectStorageServiceFactory
+		fakeClusterGetter    clusterfakes.FakeClusterGetter
 		objectStorageService objectstoragefakes.FakeObjectStorageService
 		accessRoleService    objectstoragefakes.FakeAccessRoleService
 		bucketKey            = client.ObjectKey{
@@ -49,12 +52,12 @@ var _ = Describe("Bucket Reconciler", func() {
 		ctx = context.Background()
 
 		fakeClient = fake.NewClientBuilder().WithStatusSubresource(&v1alpha1.Bucket{}).Build()
-
 		serviceFactory = objectstoragefakes.FakeObjectStorageServiceFactory{}
+		fakeClusterGetter = clusterfakes.FakeClusterGetter{}
 		objectStorageService = objectstoragefakes.FakeObjectStorageService{}
 		accessRoleService = objectstoragefakes.FakeAccessRoleService{}
-		serviceFactory.NewS3ServiceReturns(&objectStorageService, nil)
-		serviceFactory.NewIAMServiceReturns(&accessRoleService, nil)
+		serviceFactory.NewObjectStorageServiceReturns(&objectStorageService, nil)
+		serviceFactory.NewAccessRoleServiceReturns(&accessRoleService, nil)
 	})
 
 	var _ = Describe("CAPA", func() {
@@ -62,8 +65,9 @@ var _ = Describe("Bucket Reconciler", func() {
 		BeforeEach(func() {
 			reconciler = controller.BucketReconciler{
 				Client:                      fakeClient,
+				ClusterGetter:               &fakeClusterGetter,
 				ObjectStorageServiceFactory: &serviceFactory,
-				ManagementCluster: managementcluster.ManagementCluster{
+				ManagementCluster: flags.ManagementCluster{
 					Name:      "test-mc",
 					Namespace: "giantswarm",
 					Provider:  "capa",
@@ -104,6 +108,10 @@ var _ = Describe("Bucket Reconciler", func() {
 			})
 
 			When("the management cluster CR is missing", func() {
+				expectedError := errors.New("Missing management cluster AWSCluster CR")
+				BeforeEach(func() {
+					fakeClusterGetter.GetClusterReturns(nil, expectedError)
+				})
 				It("fails", func() {
 					Expect(reconcileErr).To(HaveOccurred())
 					var existingBucket v1alpha1.Bucket
@@ -113,6 +121,7 @@ var _ = Describe("Bucket Reconciler", func() {
 			})
 
 			When("the management cluster has no identity set", func() {
+				expectedError := errors.New("missing management cluster identify")
 				BeforeEach(func() {
 					cluster := &unstructured.Unstructured{
 						Object: map[string]interface{}{
@@ -128,6 +137,7 @@ var _ = Describe("Bucket Reconciler", func() {
 						},
 					}
 					_ = fakeClient.Create(ctx, cluster)
+					fakeClusterGetter.GetClusterReturns(nil, expectedError)
 				})
 				It("fails", func() {
 					Expect(reconcileErr).To(HaveOccurred())
@@ -138,6 +148,7 @@ var _ = Describe("Bucket Reconciler", func() {
 			})
 
 			When("management cluster identity is missing", func() {
+				expectedError := errors.New("Missing management cluster identity AWSClusterRoleIdentity CR")
 				BeforeEach(func() {
 					cluster := &unstructured.Unstructured{
 						Object: map[string]interface{}{
@@ -155,6 +166,7 @@ var _ = Describe("Bucket Reconciler", func() {
 						},
 					}
 					_ = fakeClient.Create(ctx, cluster)
+					fakeClusterGetter.GetClusterReturns(nil, expectedError)
 				})
 				It("fails", func() {
 					Expect(reconcileErr).To(HaveOccurred())
@@ -165,6 +177,7 @@ var _ = Describe("Bucket Reconciler", func() {
 			})
 
 			When("management cluster identity has no role arn", func() {
+				expectedError := errors.New("Missing role arn")
 				BeforeEach(func() {
 					clusterIdentity := &unstructured.Unstructured{
 						Object: map[string]interface{}{
@@ -195,6 +208,8 @@ var _ = Describe("Bucket Reconciler", func() {
 						},
 					}
 					_ = fakeClient.Create(ctx, cluster)
+
+					fakeClusterGetter.GetClusterReturns(nil, expectedError)
 				})
 				It("fails", func() {
 					Expect(reconcileErr).To(HaveOccurred())
@@ -239,6 +254,16 @@ var _ = Describe("Bucket Reconciler", func() {
 					},
 				}
 				_ = fakeClient.Create(ctx, cluster)
+
+				var awsCluster = aws.AWSCluster{
+					Name:       reconciler.ManagementCluster.Name,
+					Namespace:  reconciler.ManagementCluster.Namespace,
+					BaseDomain: reconciler.ManagementCluster.BaseDomain,
+					Region:     reconciler.ManagementCluster.Region,
+					Role:       "role",
+					Tags:       map[string]string{},
+				}
+				fakeClusterGetter.GetClusterReturns(awsCluster, nil)
 			})
 
 			When("the bucket is being created/updated", func() {
@@ -408,43 +433,4 @@ var _ = Describe("Bucket Reconciler", func() {
 			})
 		})
 	})
-
-	var _ = Describe("Unknown provider", func() {
-		// creates the reconciler
-		BeforeEach(func() {
-			// creates dummy bucket
-			bucket := v1alpha1.Bucket{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      BucketName,
-					Namespace: BucketNamespace,
-				},
-				Spec: v1alpha1.BucketSpec{
-					Name: BucketName,
-				},
-				Status: v1alpha1.BucketStatus{},
-			}
-			_ = fakeClient.Create(ctx, &bucket)
-
-			reconciler = controller.BucketReconciler{
-				Client:                      fakeClient,
-				ObjectStorageServiceFactory: &serviceFactory,
-				ManagementCluster: managementcluster.ManagementCluster{
-					Name:      "test-mc",
-					Namespace: "giantswarm",
-					Provider:  "unknown",
-					Region:    "eu-central-1",
-				},
-			}
-
-			request := ctrl.Request{NamespacedName: bucketKey}
-			_, reconcileErr = reconciler.Reconcile(ctx, request)
-		})
-
-		When("reconciling", func() {
-			It("fails", func() {
-				Expect(reconcileErr).To(HaveOccurred())
-			})
-		})
-	})
-
 })
