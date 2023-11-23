@@ -58,6 +58,16 @@ type FakeCluster struct {
 	getRoleReturnsOnCall map[int]struct {
 		result1 string
 	}
+	GetTagsStub        func() map[string]string
+	getTagsMutex       sync.RWMutex
+	getTagsArgsForCall []struct {
+	}
+	getTagsReturns struct {
+		result1 map[string]string
+	}
+	getTagsReturnsOnCall map[int]struct {
+		result1 map[string]string
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
@@ -327,6 +337,59 @@ func (fake *FakeCluster) GetRoleReturnsOnCall(i int, result1 string) {
 	}{result1}
 }
 
+func (fake *FakeCluster) GetTags() map[string]string {
+	fake.getTagsMutex.Lock()
+	ret, specificReturn := fake.getTagsReturnsOnCall[len(fake.getTagsArgsForCall)]
+	fake.getTagsArgsForCall = append(fake.getTagsArgsForCall, struct {
+	}{})
+	stub := fake.GetTagsStub
+	fakeReturns := fake.getTagsReturns
+	fake.recordInvocation("GetTags", []interface{}{})
+	fake.getTagsMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeCluster) GetTagsCallCount() int {
+	fake.getTagsMutex.RLock()
+	defer fake.getTagsMutex.RUnlock()
+	return len(fake.getTagsArgsForCall)
+}
+
+func (fake *FakeCluster) GetTagsCalls(stub func() map[string]string) {
+	fake.getTagsMutex.Lock()
+	defer fake.getTagsMutex.Unlock()
+	fake.GetTagsStub = stub
+}
+
+func (fake *FakeCluster) GetTagsReturns(result1 map[string]string) {
+	fake.getTagsMutex.Lock()
+	defer fake.getTagsMutex.Unlock()
+	fake.GetTagsStub = nil
+	fake.getTagsReturns = struct {
+		result1 map[string]string
+	}{result1}
+}
+
+func (fake *FakeCluster) GetTagsReturnsOnCall(i int, result1 map[string]string) {
+	fake.getTagsMutex.Lock()
+	defer fake.getTagsMutex.Unlock()
+	fake.GetTagsStub = nil
+	if fake.getTagsReturnsOnCall == nil {
+		fake.getTagsReturnsOnCall = make(map[int]struct {
+			result1 map[string]string
+		})
+	}
+	fake.getTagsReturnsOnCall[i] = struct {
+		result1 map[string]string
+	}{result1}
+}
+
 func (fake *FakeCluster) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -340,6 +403,8 @@ func (fake *FakeCluster) Invocations() map[string][][]interface{} {
 	defer fake.getRegionMutex.RUnlock()
 	fake.getRoleMutex.RLock()
 	defer fake.getRoleMutex.RUnlock()
+	fake.getTagsMutex.RLock()
+	defer fake.getTagsMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

@@ -18,4 +18,5 @@ type Cluster interface {
 	GetBaseDomain() string
 	GetRegion() string
 	GetRole() string
+	GetTags() map[string]string
 }

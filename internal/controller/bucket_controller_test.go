@@ -111,7 +111,7 @@ var _ = Describe("Bucket Reconciler", func() {
 			})
 
 			When("the management cluster CR is missing", func() {
-				expectedError := errors.New("Missing management cluster AWSCluster CR (test)")
+				expectedError := errors.New("Missing management cluster AWSCluster CR")
 				BeforeEach(func() {
 					fakeClusterGetter.GetClusterReturns(nil, expectedError)
 				})
@@ -124,7 +124,7 @@ var _ = Describe("Bucket Reconciler", func() {
 			})
 
 			When("the management cluster has no identity set", func() {
-				expectedError := errors.New("missing management cluster identify (test)")
+				expectedError := errors.New("missing management cluster identify")
 				BeforeEach(func() {
 					cluster := &unstructured.Unstructured{
 						Object: map[string]interface{}{
@@ -151,7 +151,7 @@ var _ = Describe("Bucket Reconciler", func() {
 			})
 
 			When("management cluster identity is missing", func() {
-				expectedError := errors.New("Missing management cluster identity AWSClusterRoleIdentity CR (test)")
+				expectedError := errors.New("Missing management cluster identity AWSClusterRoleIdentity CR")
 				BeforeEach(func() {
 					cluster := &unstructured.Unstructured{
 						Object: map[string]interface{}{
@@ -180,7 +180,7 @@ var _ = Describe("Bucket Reconciler", func() {
 			})
 
 			When("management cluster identity has no role arn", func() {
-				expectedError := errors.New("Missing role arn (test)")
+				expectedError := errors.New("Missing role arn")
 				BeforeEach(func() {
 					clusterIdentity := &unstructured.Unstructured{
 						Object: map[string]interface{}{
@@ -264,6 +264,7 @@ var _ = Describe("Bucket Reconciler", func() {
 					BaseDomain: reconciler.ManagementCluster.BaseDomain,
 					Region:     reconciler.ManagementCluster.Region,
 					Role:       "role",
+					Tags:       map[string]string{},
 				}
 				fakeClusterGetter.GetClusterReturns(awsCluster, nil)
 			})
