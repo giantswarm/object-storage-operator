@@ -62,7 +62,7 @@ func (s S3ObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1alph
 	return err
 }
 
-func (s S3ObjectStorageAdapter) ConfigureBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
+func (s S3ObjectStorageAdapter) ConfigureBucket(ctx context.Context, bucket *v1alpha1.Bucket, additionalTags map[string]string) error {
 	var err error
 	// If expiration is not set, we remove all lifecycle rules
 	err = s.setLifecycleRules(ctx, bucket)
@@ -70,7 +70,7 @@ func (s S3ObjectStorageAdapter) ConfigureBucket(ctx context.Context, bucket *v1a
 		return err
 	}
 
-	err = s.setTags(ctx, bucket)
+	err = s.setTags(ctx, bucket, additionalTags)
 	return err
 }
 
@@ -104,7 +104,7 @@ func (s S3ObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket *v
 
 }
 
-func (s S3ObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1.Bucket) error {
+func (s S3ObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1.Bucket, additionalTags map[string]string) error {
 	if len(bucket.Spec.Tags) == 0 {
 		_, err := s.s3Client.DeleteBucketTagging(ctx, &s3.DeleteBucketTaggingInput{
 			Bucket: aws.String(bucket.Spec.Name),
@@ -117,10 +117,15 @@ func (s S3ObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1.Bu
 		// We use this to avoid pointer issues in range loops.
 		tag := t
 		if tag.Key != "" && tag.Value != "" {
-			tags = append(tags, types.Tag{
-				Key:   &tag.Key,
-				Value: &tag.Value,
-			})
+			tags = append(tags, types.Tag{Key: &tag.Key, Value: &tag.Value})
+		}
+	}
+	for k, v := range additionalTags {
+		// We use this to avoid pointer issues in range loops.
+		key := k
+		value := v
+		if key != "" && value != "" {
+			tags = append(tags, types.Tag{Key: &key, Value: &value})
 		}
 	}
 

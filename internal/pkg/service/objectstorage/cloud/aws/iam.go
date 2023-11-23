@@ -3,6 +3,7 @@ package aws
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -13,22 +14,24 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
-	"github.com/giantswarm/object-storage-operator/internal/pkg/managementcluster"
+	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
 )
 
 type IAMAccessRoleServiceAdapter struct {
-	iamClient         *iam.Client
-	logger            logr.Logger
-	accountId         string
-	managementCluster managementcluster.ManagementCluster
+	iamClient   *iam.Client
+	logger      logr.Logger
+	accountId   string
+	baseDomain  string
+	clusterName string
 }
 
-func NewIamService(iamClient *iam.Client, logger logr.Logger, accountId string, managementCluster managementcluster.ManagementCluster) IAMAccessRoleServiceAdapter {
+func NewIamService(iamClient *iam.Client, logger logr.Logger, accountId string, cluster cluster.Cluster) IAMAccessRoleServiceAdapter {
 	return IAMAccessRoleServiceAdapter{
-		iamClient:         iamClient,
-		logger:            logger,
-		accountId:         accountId,
-		managementCluster: managementCluster,
+		iamClient:   iamClient,
+		logger:      logger,
+		accountId:   accountId,
+		baseDomain:  cluster.GetBaseDomain(),
+		clusterName: cluster.GetName(),
 	}
 }
 
@@ -54,21 +57,39 @@ func (s IAMAccessRoleServiceAdapter) getRole(ctx context.Context, roleName strin
 	return output.Role, nil
 }
 
-func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *v1alpha1.Bucket) error {
+func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *v1alpha1.Bucket, additionalTags map[string]string) error {
 	roleName := bucket.Spec.AccessRole.RoleName
 	role, err := s.getRole(ctx, roleName)
 	if err != nil {
 		return err
 	}
 
-	trustPolicy := templateTrustPolicy(s.accountId, s.managementCluster, bucket)
+	tags := make([]types.Tag, 0)
+	for _, t := range bucket.Spec.Tags {
+		// We use this to avoid pointer issues in range loops.
+		tag := t
+		if tag.Key != "" && tag.Value != "" {
+			tags = append(tags, types.Tag{Key: &tag.Key, Value: &tag.Value})
+		}
+	}
+	for k, v := range additionalTags {
+		// We use this to avoid pointer issues in range loops.
+		key := k
+		value := v
+		if key != "" && value != "" {
+			tags = append(tags, types.Tag{Key: &key, Value: &value})
+		}
+	}
+
+	trustPolicy := s.templateTrustPolicy(bucket)
+
 	if role == nil {
 		_, err := s.iamClient.CreateRole(ctx, &iam.CreateRoleInput{
 			RoleName:                 aws.String(roleName),
 			AssumeRolePolicyDocument: aws.String(trustPolicy),
 			Description:              aws.String("Role for Giant Swarm managed Loki"),
+			Tags:                     tags,
 		})
-
 		if err != nil {
 			return errors.WithStack(err)
 		}
@@ -80,6 +101,28 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 		})
 		if err != nil {
 			return errors.WithStack(err)
+		}
+
+		// Update tags (need to untag with existing keys then retag)
+		if !reflect.DeepEqual(role.Tags, tags) {
+			tagKeys := make([]string, len(role.Tags))
+			for _, tag := range role.Tags {
+				tagKeys = append(tagKeys, *tag.Key)
+			}
+			_, err := s.iamClient.UntagRole(ctx, &iam.UntagRoleInput{
+				RoleName: aws.String(roleName),
+				TagKeys:  tagKeys,
+			})
+			if err != nil {
+				return errors.WithStack(err)
+			}
+			_, err = s.iamClient.TagRole(ctx, &iam.TagRoleInput{
+				RoleName: aws.String(roleName),
+				Tags:     tags,
+			})
+			if err != nil {
+				return errors.WithStack(err)
+			}
 		}
 	}
 
@@ -208,15 +251,15 @@ func (s *IAMAccessRoleServiceAdapter) cleanAttachedPolicies(ctx context.Context,
 	return nil
 }
 
-func templateRolePolicy(bucket *v1alpha1.Bucket) string {
-	return strings.ReplaceAll(rolePolicy, "@BUCKET_NAME@", bucket.Spec.Name)
-}
-
-func templateTrustPolicy(accountId string, managementCluster managementcluster.ManagementCluster, bucket *v1alpha1.Bucket) string {
-	policy := strings.ReplaceAll(trustIdentityPolicy, "@CLOUD_DOMAIN@", managementCluster.BaseDomain)
-	policy = strings.ReplaceAll(policy, "@INSTALLATION@", managementCluster.Name)
-	policy = strings.ReplaceAll(policy, "@ACCOUNT_ID@", accountId)
+func (s IAMAccessRoleServiceAdapter) templateTrustPolicy(bucket *v1alpha1.Bucket) string {
+	policy := strings.ReplaceAll(trustIdentityPolicy, "@CLOUD_DOMAIN@", s.baseDomain)
+	policy = strings.ReplaceAll(policy, "@INSTALLATION@", s.clusterName)
+	policy = strings.ReplaceAll(policy, "@ACCOUNT_ID@", s.accountId)
 	policy = strings.ReplaceAll(policy, "@SERVICE_ACCOUNT_NAMESPACE@", bucket.Spec.AccessRole.ServiceAccountNamespace)
 	policy = strings.ReplaceAll(policy, "@SERVICE_ACCOUNT_NAME@", bucket.Spec.AccessRole.ServiceAccountName)
 	return policy
+}
+
+func templateRolePolicy(bucket *v1alpha1.Bucket) string {
+	return strings.ReplaceAll(rolePolicy, "@BUCKET_NAME@", bucket.Spec.Name)
 }

@@ -1,4 +1,4 @@
-package managementcluster
+package flags
 
 type ManagementCluster struct {
 	BaseDomain string

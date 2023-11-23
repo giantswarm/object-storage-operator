@@ -42,7 +42,7 @@ func (s AzureObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1a
 }
 
 // ConfigureBucket set lifecycle rules (expiration on blob)
-func (s AzureObjectStorageAdapter) ConfigureBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
+func (s AzureObjectStorageAdapter) ConfigureBucket(ctx context.Context, bucket *v1alpha1.Bucket, additionalTags map[string]string) error {
 	//TODO
 	return nil
 }
