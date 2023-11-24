@@ -9,6 +9,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	corev1 "k8s.io/api/core/v1"
+
 	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/flags"
 )
@@ -142,4 +144,24 @@ func (c AWSCluster) GetRole() string {
 
 func (c AWSCluster) GetTags() map[string]string {
 	return c.Tags
+}
+
+func (c AWSCluster) GetSubscriptionID() string {
+	return ""
+}
+
+func (c AWSCluster) GetClientID() string {
+	return ""
+}
+
+func (c AWSCluster) GetTypeIdentity() string {
+	return ""
+}
+
+func (c AWSCluster) GetTenantID() string {
+	return ""
+}
+
+func (c AWSCluster) GetSecretRef() corev1.Secret {
+	return corev1.Secret{}
 }

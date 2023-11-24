@@ -66,7 +66,7 @@ func (r BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	if err != nil {
 		return ctrl.Result{}, errors.WithStack(err)
 	}
-	objectStorageService, err := r.NewObjectStorageService(ctx, logger, cluster, r.Client)
+	objectStorageService, err := r.NewObjectStorageService(ctx, logger, cluster)
 	if err != nil {
 		return ctrl.Result{}, errors.WithStack(err)
 	}
@@ -84,7 +84,7 @@ func (r BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	return r.reconcileNormal(ctx, objectStorageService, accessRoleService, bucket, cluster.GetTags())
 }
 
-// reconcileCreate creates the s3 bucket.
+// reconcileCreate creates the bucket.
 func (r BucketReconciler) reconcileNormal(ctx context.Context, objectStorageService objectstorage.ObjectStorageService, accessRoleService objectstorage.AccessRoleService, bucket *v1alpha1.Bucket, additionalTags map[string]string) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
@@ -143,7 +143,7 @@ func (r BucketReconciler) reconcileNormal(ctx context.Context, objectStorageServ
 	return ctrl.Result{}, nil
 }
 
-// reconcileDelete deletes the s3 bucket.
+// reconcileDelete deletes the bucket.
 func (r BucketReconciler) reconcileDelete(ctx context.Context, objectStorageService objectstorage.ObjectStorageService, accessRoleService objectstorage.AccessRoleService, bucket *v1alpha1.Bucket) error {
 	logger := log.FromContext(ctx)
 

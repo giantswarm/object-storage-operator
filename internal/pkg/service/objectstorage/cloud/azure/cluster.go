@@ -6,8 +6,11 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/flags"
@@ -72,13 +75,61 @@ func (c AzureClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, er
 		return nil, nil
 	}
 
+	var secret corev1.Secret
+	subscriptionID, found, err := unstructured.NestedString(cluster.Object, "spec", "subscriptionID")
+	if !found || err != nil {
+		return nil, errors.New("Missing or incorrect subscriptionID")
+	}
+	typeIdentity, found, err := unstructured.NestedString(clusterIdentity.Object, "spec", "type")
+	if !found || err != nil {
+		return nil, errors.New("Missing or incorrect identity.type")
+	}
+	clientID, tenantID, clientSecretName, clientSecretNamespace := "", "", "", ""
+	if typeIdentity == "UserAssignedMSI" {
+		clientID, found, err = unstructured.NestedString(clusterIdentity.Object, "spec", "clientID")
+		if !found || err != nil {
+			return nil, errors.New("Missing or incorrect identity.clientID")
+		}
+	}
+	if typeIdentity == "ManualServicePrincipal" {
+		tenantID, found, err = unstructured.NestedString(clusterIdentity.Object, "spec", "tenantID")
+		if !found || err != nil {
+			return nil, errors.New("Missing or incorrect identity.tenantID")
+		}
+		clientID, found, err = unstructured.NestedString(clusterIdentity.Object, "spec", "clientID")
+		if !found || err != nil {
+			return nil, errors.New("Missing or incorrect identity.clientID")
+		}
+		clientSecretName, found, err = unstructured.NestedString(clusterIdentity.Object, "spec", "clientSecret", "name")
+		if !found || err != nil {
+			return nil, errors.New("Missing or incorrect identity.clientSecret.name")
+		}
+		clientSecretNamespace, found, err = unstructured.NestedString(clusterIdentity.Object, "spec", "clientSecret", "namespace")
+		if !found || err != nil {
+			return nil, errors.New("Missing or incorrect identity.clientSecret.namespace")
+		}
+		clientSecretName := types.NamespacedName{
+			Namespace: clientSecretNamespace,
+			Name:      clientSecretName,
+		}
+		err = c.Client.Get(ctx, clientSecretName, &secret)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+	}
+
 	return AzureCluster{
-		Name:       c.ManagementCluster.Name,
-		Namespace:  c.ManagementCluster.Namespace,
-		BaseDomain: c.ManagementCluster.BaseDomain,
-		Region:     c.ManagementCluster.Region,
-		Role:       roleArn,
-		Tags:       clusterTags,
+		Name:           c.ManagementCluster.Name,
+		Namespace:      c.ManagementCluster.Namespace,
+		BaseDomain:     c.ManagementCluster.BaseDomain,
+		Region:         c.ManagementCluster.Region,
+		Role:           roleArn,
+		Tags:           clusterTags,
+		SubscriptionID: subscriptionID,
+		TypeIdentity:   typeIdentity,
+		ClientID:       clientID,
+		TenantID:       tenantID,
+		SecretRef:      secret,
 	}, nil
 }
 
@@ -113,12 +164,17 @@ func (c AzureClusterGetter) getClusterCRIdentiy(ctx context.Context, clusterIden
 
 // AzureCluster implements Cluster Interface with Azure data
 type AzureCluster struct {
-	Name       string
-	Namespace  string
-	BaseDomain string
-	Region     string
-	Role       string
-	Tags       map[string]string
+	Name           string
+	Namespace      string
+	BaseDomain     string
+	Region         string
+	Role           string
+	Tags           map[string]string
+	SubscriptionID string
+	TypeIdentity   string
+	ClientID       string
+	TenantID       string
+	SecretRef      corev1.Secret
 }
 
 func (c AzureCluster) GetName() string {
@@ -143,4 +199,24 @@ func (c AzureCluster) GetRole() string {
 
 func (c AzureCluster) GetTags() map[string]string {
 	return c.Tags
+}
+
+func (c AzureCluster) GetSubscriptionID() string {
+	return c.SubscriptionID
+}
+
+func (c AzureCluster) GetTypeIdentity() string {
+	return c.TypeIdentity
+}
+
+func (c AzureCluster) GetClientID() string {
+	return c.ClientID
+}
+
+func (c AzureCluster) GetTenantID() string {
+	return c.TenantID
+}
+
+func (c AzureCluster) GetSecretRef() corev1.Secret {
+	return c.SecretRef
 }
