@@ -18,6 +18,7 @@ type Cluster interface {
 	GetRegion() string
 	GetRole() string
 	GetTags() map[string]string
+	GetResourceGroup() string
 	GetSubscriptionID() string
 	GetTypeIdentity() string
 	GetClientID() string

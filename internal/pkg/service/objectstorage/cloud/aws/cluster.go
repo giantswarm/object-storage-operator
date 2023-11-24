@@ -140,6 +140,10 @@ func (c AWSCluster) GetTags() map[string]string {
 	return c.Tags
 }
 
+func (c AWSCluster) GetResourceGroup() string {
+	return ""
+}
+
 func (c AWSCluster) GetSubscriptionID() string {
 	return ""
 }

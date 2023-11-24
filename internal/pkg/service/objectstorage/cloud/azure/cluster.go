@@ -76,6 +76,10 @@ func (c AzureClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, er
 	}
 
 	var secret corev1.Secret
+	resourceGroup, found, err := unstructured.NestedString(cluster.Object, "spec", "resourceGroup")
+	if !found || err != nil {
+		return nil, errors.New("Missing or incorrect resourceGroup")
+	}
 	subscriptionID, found, err := unstructured.NestedString(cluster.Object, "spec", "subscriptionID")
 	if !found || err != nil {
 		return nil, errors.New("Missing or incorrect subscriptionID")
@@ -125,6 +129,7 @@ func (c AzureClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, er
 		Region:         c.ManagementCluster.Region,
 		Role:           roleArn,
 		Tags:           clusterTags,
+		ResourceGroup:  resourceGroup,
 		SubscriptionID: subscriptionID,
 		TypeIdentity:   typeIdentity,
 		ClientID:       clientID,
@@ -164,6 +169,7 @@ type AzureCluster struct {
 	Region         string
 	Role           string
 	Tags           map[string]string
+	ResourceGroup  string
 	SubscriptionID string
 	TypeIdentity   string
 	ClientID       string
@@ -193,6 +199,10 @@ func (c AzureCluster) GetRole() string {
 
 func (c AzureCluster) GetTags() map[string]string {
 	return c.Tags
+}
+
+func (c AzureCluster) GetResourceGroup() string {
+	return c.ResourceGroup
 }
 
 func (c AzureCluster) GetSubscriptionID() string {
