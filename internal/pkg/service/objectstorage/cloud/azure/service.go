@@ -10,8 +10,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 
-	"github.com/giantswarm/microerror"
-
 	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage"
 )
@@ -52,7 +50,7 @@ func (s AzureObjectStorageService) NewObjectStorageService(ctx context.Context, 
 	var storageClientFactory *armstorage.ClientFactory
 	storageClientFactory, err = armstorage.NewClientFactory(cluster.GetSubscriptionID(), cred, nil)
 	if err != nil {
-		return nil, microerror.Mask(err)
+		return nil, errors.WithStack(err)
 	}
 
 	return NewAzureStorageService(storageClientFactory, logger), nil
