@@ -90,10 +90,7 @@ func (c AWSClusterGetter) getClusterCR(ctx context.Context) (*unstructured.Unstr
 		Kind:    KindCluster,
 		Version: VersionCluster,
 	})
-	err := c.Client.Get(ctx, client.ObjectKey{
-		Name:      c.ManagementCluster.Name,
-		Namespace: c.ManagementCluster.Namespace,
-	}, cluster)
+	err := c.Client.Get(ctx, flags.ToObjectKey(c.ManagementCluster.Name, c.ManagementCluster.Namespace), cluster)
 	return cluster, errors.WithStack(err)
 }
 
@@ -105,10 +102,7 @@ func (c AWSClusterGetter) getClusterCRIdentiy(ctx context.Context, clusterIdenti
 		Version: VersionClusterIdentity,
 	})
 
-	err := c.Client.Get(ctx, client.ObjectKey{
-		Name:      clusterIdentityName,
-		Namespace: c.ManagementCluster.Namespace,
-	}, clusterIdentity)
+	err := c.Client.Get(ctx, flags.ToObjectKey(clusterIdentityName, c.ManagementCluster.Namespace), clusterIdentity)
 	return clusterIdentity, errors.WithStack(err)
 }
 
