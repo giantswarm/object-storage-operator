@@ -7,9 +7,15 @@ metadata:
 rules:
   - apiGroups:
       - infrastructure.cluster.x-k8s.io
+    {{ if eq .Values.managementCluster.provider.kind "capa" -}}
     resources:
       - awsclusters
       - awsclusterroleidentities
+    {{ else if eq .Values.managementCluster.provider.kind "capz" -}}
+    resources:
+      - azureclusters
+      - azureclusterroleidentities
+    {{- end }}
     verbs:
       - get
       - list
