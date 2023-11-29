@@ -70,7 +70,6 @@ func (c AWSClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, erro
 	}
 	if !found || len(clusterTags) == 0 {
 		logger.Info("No cluster tags found")
-		return nil, nil
 	}
 
 	return AWSCluster{

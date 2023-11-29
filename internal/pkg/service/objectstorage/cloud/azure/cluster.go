@@ -27,7 +27,7 @@ const (
 	Group                  = "infrastructure.cluster.x-k8s.io"
 	KindCluster            = "AzureCluster"
 	VersionCluster         = "v1beta1"
-	KindClusterIdentity    = "AzureClusterRoleIdentity"
+	KindClusterIdentity    = "AzureClusterIdentity"
 	VersionClusterIdentity = "v1beta1"
 	ClientSecretKeyName    = "clientSecret"
 )
@@ -40,7 +40,6 @@ func (c AzureClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, er
 		logger.Error(err, "Missing management cluster AzureCluster CR")
 		return nil, errors.WithStack(err)
 	}
-
 	clusterIdentityName, found, err := unstructured.NestedString(cluster.Object, "spec", "identityRef", "name")
 	if err != nil {
 		logger.Error(err, "Identity name is not a string")
@@ -55,16 +54,6 @@ func (c AzureClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, er
 		logger.Error(err, "Missing management cluster identity AzureClusterRoleIdentity CR")
 		return nil, errors.WithStack(err)
 	}
-
-	roleArn, found, err := unstructured.NestedString(clusterIdentity.Object, "spec", "roleARN")
-	if err != nil {
-		logger.Error(err, "Role arn is not a string")
-		return nil, errors.WithStack(err)
-	}
-	if !found {
-		return nil, errors.New("missing role arn")
-	}
-
 	clusterTags, found, err := unstructured.NestedStringMap(cluster.Object, "spec", "additionalTags")
 	if err != nil {
 		logger.Error(err, "Additional tags are not a map")
@@ -72,9 +61,7 @@ func (c AzureClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, er
 	}
 	if !found || len(clusterTags) == 0 {
 		logger.Info("No cluster tags found")
-		return nil, nil
 	}
-
 	var secret corev1.Secret
 	resourceGroup, found, err := unstructured.NestedString(cluster.Object, "spec", "resourceGroup")
 	if !found || err != nil {
@@ -127,7 +114,6 @@ func (c AzureClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, er
 		Namespace:      c.ManagementCluster.Namespace,
 		BaseDomain:     c.ManagementCluster.BaseDomain,
 		Region:         c.ManagementCluster.Region,
-		Role:           roleArn,
 		Tags:           clusterTags,
 		ResourceGroup:  resourceGroup,
 		SubscriptionID: subscriptionID,
@@ -167,7 +153,6 @@ type AzureCluster struct {
 	Namespace      string
 	BaseDomain     string
 	Region         string
-	Role           string
 	Tags           map[string]string
 	ResourceGroup  string
 	SubscriptionID string
@@ -194,7 +179,7 @@ func (c AzureCluster) GetRegion() string {
 }
 
 func (c AzureCluster) GetRole() string {
-	return c.Role
+	return ""
 }
 
 func (c AzureCluster) GetTags() map[string]string {
