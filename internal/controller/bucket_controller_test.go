@@ -7,6 +7,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -627,12 +628,17 @@ var _ = Describe("Bucket Reconciler", func() {
 				_ = fakeClient.Create(ctx, cluster)
 
 				var azureCluster = azure.AzureCluster{
-					Name:       reconciler.ManagementCluster.Name,
-					Namespace:  reconciler.ManagementCluster.Namespace,
-					BaseDomain: reconciler.ManagementCluster.BaseDomain,
-					Region:     reconciler.ManagementCluster.Region,
-					Role:       "role",
-					Tags:       map[string]string{},
+					Name:           reconciler.ManagementCluster.Name,
+					Namespace:      reconciler.ManagementCluster.Namespace,
+					BaseDomain:     reconciler.ManagementCluster.BaseDomain,
+					Region:         reconciler.ManagementCluster.Region,
+					Tags:           map[string]string{},
+					ResourceGroup:  "resourceGroup",
+					SubscriptionID: "subscriptionID",
+					TypeIdentity:   "UserAssignedMSI",
+					ClientID:       "clientID",
+					TenantID:       "",
+					SecretRef:      corev1.Secret{},
 				}
 				fakeClusterGetter.GetClusterReturns(azureCluster, nil)
 			})
