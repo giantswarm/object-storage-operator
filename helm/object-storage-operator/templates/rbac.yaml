@@ -14,7 +14,7 @@ rules:
     {{ else if eq .Values.managementCluster.provider.kind "capz" -}}
     resources:
       - azureclusters
-      - azureclusterroleidentities
+      - azureclusteridentities
     {{- end }}
     verbs:
       - get

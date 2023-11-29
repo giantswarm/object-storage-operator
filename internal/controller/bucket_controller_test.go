@@ -520,7 +520,7 @@ var _ = Describe("Bucket Reconciler", func() {
 			})
 
 			When("management cluster identity is missing", func() {
-				expectedError := errors.New("Missing management cluster identity AzureClusterRoleIdentity CR")
+				expectedError := errors.New("Missing management cluster identity AzureClusterIdentity CR")
 				BeforeEach(func() {
 					cluster := &unstructured.Unstructured{
 						Object: map[string]interface{}{
@@ -553,7 +553,7 @@ var _ = Describe("Bucket Reconciler", func() {
 				BeforeEach(func() {
 					clusterIdentity := &unstructured.Unstructured{
 						Object: map[string]interface{}{
-							"kind":       "AzureClusterRoleIdentity",
+							"kind":       "AzureClusterIdentity",
 							"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta1",
 							"metadata": map[string]interface{}{
 								"name":      reconciler.ManagementCluster.Name,
@@ -597,7 +597,7 @@ var _ = Describe("Bucket Reconciler", func() {
 			BeforeEach(func() {
 				clusterIdentity := &unstructured.Unstructured{
 					Object: map[string]interface{}{
-						"kind":       "AzureClusterRoleIdentity",
+						"kind":       "AzureClusterIdentity",
 						"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta1",
 						"metadata": map[string]interface{}{
 							"name":      reconciler.ManagementCluster.Name,

@@ -51,7 +51,7 @@ func (c AzureClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, er
 	}
 	clusterIdentity, err := c.getClusterCRIdentiy(ctx, clusterIdentityName)
 	if err != nil {
-		logger.Error(err, "Missing management cluster identity AzureClusterRoleIdentity CR")
+		logger.Error(err, "Missing management cluster identity AzureClusterIdentity CR")
 		return nil, errors.WithStack(err)
 	}
 	clusterTags, found, err := unstructured.NestedStringMap(cluster.Object, "spec", "additionalTags")
