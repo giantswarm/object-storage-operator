@@ -15,20 +15,21 @@ import (
 )
 
 type AzureObjectStorageAdapter struct {
-	azStorageAccountClient *armstorage.AccountsClient
-	azBlobContainerClient  *armstorage.BlobContainersClient
-	logger                 logr.Logger
-	cluster                AzureCluster
-	storageAccountName     string
+	storageAccountClient *armstorage.AccountsClient
+	blobContainerClient  *armstorage.BlobContainersClient
+	logger               logr.Logger
+	cluster              AzureCluster
+	storageAccountName   string
 }
 
-func NewAzureStorageService(azStorageAccountClient *armstorage.AccountsClient, azBlobContainerClient *armstorage.BlobContainersClient, logger logr.Logger, cluster AzureCluster) AzureObjectStorageAdapter {
+func NewAzureStorageService(storageAccountClient *armstorage.AccountsClient, blobContainerClient *armstorage.BlobContainersClient, logger logr.Logger, cluster AzureCluster) AzureObjectStorageAdapter {
 	return AzureObjectStorageAdapter{
-		azStorageAccountClient: azStorageAccountClient,
-		azBlobContainerClient:  azBlobContainerClient,
-		logger:                 logger,
-		cluster:                cluster,
-		storageAccountName:     cluster.Name + "observability",
+		storageAccountClient: storageAccountClient,
+		blobContainerClient:  blobContainerClient,
+		logger:               logger,
+		cluster:              cluster,
+		// We choose to name storage account <installationName>observability (Azure requirements avoid special character like "-")
+		storageAccountName: cluster.Name + "observability",
 	}
 }
 
@@ -38,7 +39,7 @@ func NewAzureStorageService(azStorageAccountClient *armstorage.AccountsClient, a
 func (s AzureObjectStorageAdapter) ExistsBucket(ctx context.Context, bucket *v1alpha1.Bucket) (bool, error) {
 	s.logger.Info("CHECK BUCKET EXISTENCE - Entering")
 	// Check if storage account exists on Azure
-	existsStorageAccount, err := s.ExistsStorageAccount(ctx)
+	existsStorageAccount, err := s.existsStorageAccount(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -47,7 +48,7 @@ func (s AzureObjectStorageAdapter) ExistsBucket(ctx context.Context, bucket *v1a
 		return false, nil
 	}
 	// Check BlobContainer name exists in StorageAccount
-	_, err = s.azBlobContainerClient.Get(
+	_, err = s.blobContainerClient.Get(
 		ctx,
 		s.cluster.Credentials.ResourceGroup,
 		bucket.Spec.Name,
@@ -59,21 +60,19 @@ func (s AzureObjectStorageAdapter) ExistsBucket(ctx context.Context, bucket *v1a
 			// If NOT FOUND error, that means the BlobContainer doesn't exist, so we return false
 			if respErr.StatusCode == http.StatusNotFound {
 				return false, nil
-			} else {
-				return false, err
 			}
 		}
+		return false, err
 	}
 
 	return true, nil
 }
 
 // ExistsStorageAccount checks Storage Account existence on Azure
-func (s AzureObjectStorageAdapter) ExistsStorageAccount(ctx context.Context) (bool, error) {
-	availability, err := s.azStorageAccountClient.CheckNameAvailability(
+func (s AzureObjectStorageAdapter) existsStorageAccount(ctx context.Context) (bool, error) {
+	availability, err := s.storageAccountClient.CheckNameAvailability(
 		ctx,
 		armstorage.AccountCheckNameAvailabilityParameters{
-			// We choose to name storage account <installationName>observability (Azure requirements avoid special character like "-")
 			Name: to.Ptr(s.storageAccountName),
 			Type: to.Ptr("Microsoft.Storage/storageAccounts"),
 		},
@@ -81,25 +80,21 @@ func (s AzureObjectStorageAdapter) ExistsStorageAccount(ctx context.Context) (bo
 	if err != nil {
 		return false, err
 	}
-	// If StorageAccount name is available that means it doesn't exist, so we return false
-	if *availability.NameAvailable {
-		return false, nil
-	}
-	return true, nil
+	return !*availability.NameAvailable, nil
 }
 
 // CreateBucket creates the Storage Account if it not exists AND the Storage Container
 func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	s.logger.Info("CREATION BUCKET - Entering")
 	// Check if storage account exists on Azure
-	existsStorageAccount, err := s.ExistsStorageAccount(ctx)
+	existsStorageAccount, err := s.existsStorageAccount(ctx)
 	if err != nil {
 		return err
 	}
 	// If StorageAccount does not exists, we need to create it first
 	if !existsStorageAccount {
 		// Create storage account
-		pollerResp, err := s.azStorageAccountClient.BeginCreate(
+		pollerResp, err := s.storageAccountClient.BeginCreate(
 			ctx,
 			s.cluster.Credentials.ResourceGroup,
 			s.storageAccountName,
