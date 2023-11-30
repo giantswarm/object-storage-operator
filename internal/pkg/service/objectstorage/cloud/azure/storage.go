@@ -50,7 +50,7 @@ func (s AzureObjectStorageAdapter) ExistsBucket(ctx context.Context, bucket *v1a
 	_, err = s.blobContainerClient.Get(
 		ctx,
 		s.cluster.Credentials.ResourceGroup,
-		bucket.Spec.Name,
+		s.storageAccountName,
 		bucket.Spec.Name,
 		nil)
 	if err != nil {
@@ -184,6 +184,7 @@ func (s AzureObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket
 	return nil
 }
 
+// setTags set cluster additionalTags and bucket tags into Storage Container Metadata
 func (s AzureObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	tags := map[string]*string{}
 	for _, t := range bucket.Spec.Tags {
