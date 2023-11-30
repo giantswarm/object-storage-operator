@@ -25,32 +25,36 @@ func (s AzureObjectStorageService) NewObjectStorageService(ctx context.Context, 
 	var cred azcore.TokenCredential
 	var err error
 
-	switch cluster.GetTypeIdentity() {
+	azureCredentials, ok := cluster.GetCredentials().(AzureCredentials)
+	if !ok {
+		return nil, errors.New("Impossible to cast cluster credentials into Azure cluster credentials")
+	}
+	switch azureCredentials.TypeIdentity {
 	case "UserAssignedMSI":
 		cred, err = azidentity.NewManagedIdentityCredential(&azidentity.ManagedIdentityCredentialOptions{
-			ID: azidentity.ClientID(cluster.GetClientID()),
+			ID: azidentity.ClientID(azureCredentials.ClientID),
 		})
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
 	case "ManualServicePrincipal":
 		cred, err = azidentity.NewClientSecretCredential(
-			cluster.GetTenantID(),
-			cluster.GetClientID(),
-			string(cluster.GetSecretRef().Data[ClientSecretKeyName]),
+			azureCredentials.TenantID,
+			azureCredentials.ClientID,
+			string(azureCredentials.SecretRef.Data[ClientSecretKeyName]),
 			nil)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
 	default:
-		return nil, errors.New(fmt.Sprintf("Unknown typeIdentity %s", cluster.GetTypeIdentity()))
+		return nil, errors.New(fmt.Sprintf("Unknown typeIdentity %s", azureCredentials.TypeIdentity))
 	}
 
 	var storageClientFactory *armstorage.ClientFactory
-	storageClientFactory, err = armstorage.NewClientFactory(cluster.GetSubscriptionID(), cred, nil)
+	storageClientFactory, err = armstorage.NewClientFactory(azureCredentials.SubscriptionID, cred, nil)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	return NewAzureStorageService(storageClientFactory.NewAccountsClient(), storageClientFactory.NewBlobContainersClient(), logger, cluster.GetResourceGroup()), nil
+	return NewAzureStorageService(storageClientFactory.NewAccountsClient(), storageClientFactory.NewBlobContainersClient(), logger, azureCredentials.ResourceGroup), nil
 }

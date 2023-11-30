@@ -110,17 +110,19 @@ func (c AzureClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, er
 	}
 
 	return AzureCluster{
-		Name:           c.ManagementCluster.Name,
-		Namespace:      c.ManagementCluster.Namespace,
-		BaseDomain:     c.ManagementCluster.BaseDomain,
-		Region:         c.ManagementCluster.Region,
-		Tags:           clusterTags,
-		ResourceGroup:  resourceGroup,
-		SubscriptionID: subscriptionID,
-		TypeIdentity:   typeIdentity,
-		ClientID:       clientID,
-		TenantID:       tenantID,
-		SecretRef:      secret,
+		Name:       c.ManagementCluster.Name,
+		Namespace:  c.ManagementCluster.Namespace,
+		BaseDomain: c.ManagementCluster.BaseDomain,
+		Region:     c.ManagementCluster.Region,
+		Tags:       clusterTags,
+		Credentials: AzureCredentials{
+			ResourceGroup:  resourceGroup,
+			SubscriptionID: subscriptionID,
+			TypeIdentity:   typeIdentity,
+			ClientID:       clientID,
+			TenantID:       tenantID,
+			SecretRef:      secret,
+		},
 	}, nil
 }
 
@@ -149,11 +151,15 @@ func (c AzureClusterGetter) getClusterCRIdentiy(ctx context.Context, clusterIden
 
 // AzureCluster implements Cluster Interface with Azure data
 type AzureCluster struct {
-	Name           string
-	Namespace      string
-	BaseDomain     string
-	Region         string
-	Tags           map[string]string
+	Name        string
+	Namespace   string
+	BaseDomain  string
+	Region      string
+	Tags        map[string]string
+	Credentials AzureCredentials
+}
+
+type AzureCredentials struct {
 	ResourceGroup  string
 	SubscriptionID string
 	TypeIdentity   string
@@ -178,34 +184,10 @@ func (c AzureCluster) GetRegion() string {
 	return c.Region
 }
 
-func (c AzureCluster) GetRole() string {
-	return ""
-}
-
 func (c AzureCluster) GetTags() map[string]string {
 	return c.Tags
 }
 
-func (c AzureCluster) GetResourceGroup() string {
-	return c.ResourceGroup
-}
-
-func (c AzureCluster) GetSubscriptionID() string {
-	return c.SubscriptionID
-}
-
-func (c AzureCluster) GetTypeIdentity() string {
-	return c.TypeIdentity
-}
-
-func (c AzureCluster) GetClientID() string {
-	return c.ClientID
-}
-
-func (c AzureCluster) GetTenantID() string {
-	return c.TenantID
-}
-
-func (c AzureCluster) GetSecretRef() corev1.Secret {
-	return c.SecretRef
+func (c AzureCluster) GetCredentials() cluster.Credentials {
+	return c.Credentials
 }

@@ -259,8 +259,10 @@ var _ = Describe("Bucket Reconciler", func() {
 					Namespace:  reconciler.ManagementCluster.Namespace,
 					BaseDomain: reconciler.ManagementCluster.BaseDomain,
 					Region:     reconciler.ManagementCluster.Region,
-					Role:       "role",
 					Tags:       map[string]string{},
+					Credentials: aws.AWSCredentials{
+						Role: "role",
+					},
 				}
 				fakeClusterGetter.GetClusterReturns(awsCluster, nil)
 			})
@@ -628,17 +630,19 @@ var _ = Describe("Bucket Reconciler", func() {
 				_ = fakeClient.Create(ctx, cluster)
 
 				var azureCluster = azure.AzureCluster{
-					Name:           reconciler.ManagementCluster.Name,
-					Namespace:      reconciler.ManagementCluster.Namespace,
-					BaseDomain:     reconciler.ManagementCluster.BaseDomain,
-					Region:         reconciler.ManagementCluster.Region,
-					Tags:           map[string]string{},
-					ResourceGroup:  "resourceGroup",
-					SubscriptionID: "subscriptionID",
-					TypeIdentity:   "UserAssignedMSI",
-					ClientID:       "clientID",
-					TenantID:       "",
-					SecretRef:      corev1.Secret{},
+					Name:       reconciler.ManagementCluster.Name,
+					Namespace:  reconciler.ManagementCluster.Namespace,
+					BaseDomain: reconciler.ManagementCluster.BaseDomain,
+					Region:     reconciler.ManagementCluster.Region,
+					Tags:       map[string]string{},
+					Credentials: azure.AzureCredentials{
+						ResourceGroup:  "resourceGroup",
+						SubscriptionID: "subscriptionID",
+						TypeIdentity:   "UserAssignedMSI",
+						ClientID:       "clientID",
+						TenantID:       "",
+						SecretRef:      corev1.Secret{},
+					},
 				}
 				fakeClusterGetter.GetClusterReturns(azureCluster, nil)
 			})

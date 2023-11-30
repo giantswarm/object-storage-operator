@@ -2,8 +2,6 @@ package cluster
 
 import (
 	"context"
-
-	corev1 "k8s.io/api/core/v1"
 )
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . ClusterGetter
@@ -16,12 +14,8 @@ type Cluster interface {
 	GetNamespace() string
 	GetBaseDomain() string
 	GetRegion() string
-	GetRole() string
 	GetTags() map[string]string
-	GetResourceGroup() string
-	GetSubscriptionID() string
-	GetTypeIdentity() string
-	GetClientID() string
-	GetTenantID() string
-	GetSecretRef() corev1.Secret
+	GetCredentials() Credentials
 }
+
+type Credentials interface{}

@@ -9,8 +9,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	corev1 "k8s.io/api/core/v1"
-
 	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/flags"
 )
@@ -77,8 +75,10 @@ func (c AWSClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, erro
 		Namespace:  c.ManagementCluster.Namespace,
 		BaseDomain: c.ManagementCluster.BaseDomain,
 		Region:     c.ManagementCluster.Region,
-		Role:       roleArn,
 		Tags:       clusterTags,
+		Credentials: AWSCredentials{
+			Role: roleArn,
+		},
 	}, nil
 }
 
@@ -107,12 +107,16 @@ func (c AWSClusterGetter) getClusterCRIdentiy(ctx context.Context, clusterIdenti
 
 // AWSCluster implements Cluster Interface with AWS data
 type AWSCluster struct {
-	Name       string
-	Namespace  string
-	BaseDomain string
-	Region     string
-	Role       string
-	Tags       map[string]string
+	Name        string
+	Namespace   string
+	BaseDomain  string
+	Region      string
+	Tags        map[string]string
+	Credentials AWSCredentials
+}
+
+type AWSCredentials struct {
+	Role string
 }
 
 func (c AWSCluster) GetName() string {
@@ -131,34 +135,10 @@ func (c AWSCluster) GetRegion() string {
 	return c.Region
 }
 
-func (c AWSCluster) GetRole() string {
-	return c.Role
-}
-
 func (c AWSCluster) GetTags() map[string]string {
 	return c.Tags
 }
 
-func (c AWSCluster) GetResourceGroup() string {
-	return ""
-}
-
-func (c AWSCluster) GetSubscriptionID() string {
-	return ""
-}
-
-func (c AWSCluster) GetClientID() string {
-	return ""
-}
-
-func (c AWSCluster) GetTypeIdentity() string {
-	return ""
-}
-
-func (c AWSCluster) GetTenantID() string {
-	return ""
-}
-
-func (c AWSCluster) GetSecretRef() corev1.Secret {
-	return corev1.Secret{}
+func (c AWSCluster) GetCredentials() cluster.Credentials {
+	return c.Credentials
 }
