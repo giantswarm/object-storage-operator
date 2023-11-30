@@ -14,6 +14,10 @@ import (
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
 )
 
+const (
+	LifecycleRuleName = "ExpirationLogging"
+)
+
 type AzureObjectStorageAdapter struct {
 	storageAccountClient     *armstorage.AccountsClient
 	blobContainerClient      *armstorage.BlobContainersClient
@@ -195,7 +199,7 @@ func (s AzureObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket
 						Rules: []*armstorage.ManagementPolicyRule{
 							{
 								Enabled: to.Ptr(true),
-								Name:    to.Ptr("Expiration"),
+								Name:    to.Ptr(LifecycleRuleName),
 								Type:    to.Ptr(armstorage.RuleTypeLifecycle),
 								Definition: &armstorage.ManagementPolicyDefinition{
 									Actions: &armstorage.ManagementPolicyAction{
@@ -221,13 +225,14 @@ func (s AzureObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket
 		if err != nil {
 			s.logger.Error(err, fmt.Sprintf("Error creating/updating Policy Rule for Storage Account %s", s.storageAccountName))
 		}
+		return err
 	}
 
 	_, err := s.managementPoliciesClient.Delete(
 		ctx,
 		s.cluster.Credentials.ResourceGroup,
 		s.storageAccountName,
-		"Expiration",
+		LifecycleRuleName,
 		nil,
 	)
 	return err
