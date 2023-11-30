@@ -19,6 +19,10 @@ room for such suffix.
 {{- include "resource.default.name" . -}}-psp
 {{- end -}}
 
+{{- define "resource.policyException.name" -}}
+{{- include "resource.default.name" . -}}-policy-exception
+{{- end -}}
+
 {{- define "resource.default.namespace" -}}
 monitoring
 {{- end -}}

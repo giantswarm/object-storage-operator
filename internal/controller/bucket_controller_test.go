@@ -40,7 +40,7 @@ var _ = Describe("Bucket Reconciler", func() {
 		fakeClusterGetter    clusterfakes.FakeClusterGetter
 		objectStorageService objectstoragefakes.FakeObjectStorageService
 		accessRoleService    objectstoragefakes.FakeAccessRoleService
-		bucketKey            = flags.ToObjectKey(BucketName, BucketNamespace)
+		bucketKey            = reconciler.ManagementCluster.ToObjectKey(BucketName, BucketNamespace)
 	)
 
 	// creates the dummy bucket and clients

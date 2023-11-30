@@ -18,8 +18,7 @@ type AzureObjectStorageService struct {
 }
 
 func (s AzureObjectStorageService) NewAccessRoleService(ctx context.Context, logger logr.Logger, cluster cluster.Cluster) (objectstorage.AccessRoleService, error) {
-	//TODO
-	return nil, nil
+	return NewAzureAccessService(), nil
 }
 
 func (s AzureObjectStorageService) NewObjectStorageService(ctx context.Context, logger logr.Logger, cluster cluster.Cluster) (objectstorage.ObjectStorageService, error) {

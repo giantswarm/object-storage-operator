@@ -10,7 +10,7 @@ type ManagementCluster struct {
 	Region     string
 }
 
-func ToObjectKey(name string, namespace string) client.ObjectKey {
+func (m ManagementCluster) ToObjectKey(name string, namespace string) client.ObjectKey {
 	return client.ObjectKey{
 		Name:      name,
 		Namespace: namespace,

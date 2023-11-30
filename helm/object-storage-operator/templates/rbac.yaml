@@ -45,6 +45,49 @@ rules:
       - events
     verbs:
       - create
+  {{ if eq .Values.managementCluster.provider.kind "capz" -}}
+  - apiGroups:
+    - infrastructure.cluster.x-k8s.io
+    resources:
+    - azureclusteridentities
+    - azureclusteridentities/status
+    verbs:
+    - get
+    - list
+    - patch
+    - update
+    - watch
+  - apiGroups:
+    - aadpodidentity.k8s.io
+    resources:
+    - azureidentities
+    - azureidentities/status
+    verbs:
+    - get
+    - list
+    - watch
+  - apiGroups:
+    - aadpodidentity.k8s.io
+    resources:
+    - azureidentities
+    verbs:
+    - create
+  - apiGroups:
+    - aadpodidentity.k8s.io
+    resources:
+    - azureidentitybindings
+    - azureidentitybindings/status
+    verbs:
+    - get
+    - list
+    - watch
+  - apiGroups:
+    - aadpodidentity.k8s.io
+    resources:
+    - azureidentitybindings
+    verbs:
+    - create
+  {{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

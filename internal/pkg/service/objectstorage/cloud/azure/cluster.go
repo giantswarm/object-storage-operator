@@ -131,7 +131,7 @@ func (c AzureClusterGetter) getClusterCR(ctx context.Context) (*unstructured.Uns
 		Kind:    KindCluster,
 		Version: VersionCluster,
 	})
-	err := c.Client.Get(ctx, flags.ToObjectKey(c.ManagementCluster.Name, c.ManagementCluster.Namespace), cluster)
+	err := c.Client.Get(ctx, c.ManagementCluster.ToObjectKey(c.ManagementCluster.Name, c.ManagementCluster.Namespace), cluster)
 	return cluster, errors.WithStack(err)
 }
 
@@ -143,7 +143,7 @@ func (c AzureClusterGetter) getClusterCRIdentiy(ctx context.Context, clusterIden
 		Version: VersionClusterIdentity,
 	})
 
-	err := c.Client.Get(ctx, flags.ToObjectKey(clusterIdentityName, c.ManagementCluster.Namespace), clusterIdentity)
+	err := c.Client.Get(ctx, c.ManagementCluster.ToObjectKey(clusterIdentityName, c.ManagementCluster.Namespace), clusterIdentity)
 	return clusterIdentity, errors.WithStack(err)
 }
 
