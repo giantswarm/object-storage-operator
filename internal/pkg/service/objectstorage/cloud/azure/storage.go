@@ -15,19 +15,21 @@ import (
 )
 
 type AzureObjectStorageAdapter struct {
-	storageAccountClient *armstorage.AccountsClient
-	blobContainerClient  *armstorage.BlobContainersClient
-	logger               logr.Logger
-	cluster              AzureCluster
-	storageAccountName   string
+	storageAccountClient     *armstorage.AccountsClient
+	blobContainerClient      *armstorage.BlobContainersClient
+	managementPoliciesClient *armstorage.ManagementPoliciesClient
+	logger                   logr.Logger
+	cluster                  AzureCluster
+	storageAccountName       string
 }
 
-func NewAzureStorageService(storageAccountClient *armstorage.AccountsClient, blobContainerClient *armstorage.BlobContainersClient, logger logr.Logger, cluster AzureCluster) AzureObjectStorageAdapter {
+func NewAzureStorageService(storageAccountClient *armstorage.AccountsClient, blobContainerClient *armstorage.BlobContainersClient, managementPoliciesClient *armstorage.ManagementPoliciesClient, logger logr.Logger, cluster AzureCluster) AzureObjectStorageAdapter {
 	return AzureObjectStorageAdapter{
-		storageAccountClient: storageAccountClient,
-		blobContainerClient:  blobContainerClient,
-		logger:               logger,
-		cluster:              cluster,
+		storageAccountClient:     storageAccountClient,
+		blobContainerClient:      blobContainerClient,
+		managementPoliciesClient: managementPoliciesClient,
+		logger:                   logger,
+		cluster:                  cluster,
 		// We choose to name storage account <installationName>observability (Azure requirements avoid special character like "-")
 		storageAccountName: cluster.Name + "observability",
 	}
@@ -179,9 +181,56 @@ func (s AzureObjectStorageAdapter) ConfigureBucket(ctx context.Context, bucket *
 	return err
 }
 
+// setLifecycleRules set a lifecycle rule on the Storage Account to delete Blobs older than X days
 func (s AzureObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket *v1alpha1.Bucket) error {
-	//TODO
-	return nil
+	if bucket.Spec.ExpirationPolicy != nil {
+		_, err := s.managementPoliciesClient.CreateOrUpdate(
+			ctx,
+			s.cluster.Credentials.ResourceGroup,
+			s.storageAccountName,
+			armstorage.ManagementPolicyNameDefault,
+			armstorage.ManagementPolicy{
+				Properties: &armstorage.ManagementPolicyProperties{
+					Policy: &armstorage.ManagementPolicySchema{
+						Rules: []*armstorage.ManagementPolicyRule{
+							{
+								Enabled: to.Ptr(true),
+								Name:    to.Ptr("Expiration"),
+								Type:    to.Ptr(armstorage.RuleTypeLifecycle),
+								Definition: &armstorage.ManagementPolicyDefinition{
+									Actions: &armstorage.ManagementPolicyAction{
+										BaseBlob: &armstorage.ManagementPolicyBaseBlob{
+											Delete: &armstorage.DateAfterModification{
+												DaysAfterModificationGreaterThan: to.Ptr[float32](float32(bucket.Spec.ExpirationPolicy.Days)),
+											},
+										},
+									},
+									Filters: &armstorage.ManagementPolicyFilter{
+										BlobTypes: []*string{
+											to.Ptr("blockBlob"),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			nil,
+		)
+		if err != nil {
+			s.logger.Error(err, fmt.Sprintf("Error creating/updating Policy Rule for Storage Account %s", s.storageAccountName))
+		}
+	}
+
+	_, err := s.managementPoliciesClient.Delete(
+		ctx,
+		s.cluster.Credentials.ResourceGroup,
+		s.storageAccountName,
+		"Expiration",
+		nil,
+	)
+	return err
 }
 
 // setTags set cluster additionalTags and bucket tags into Storage Container Metadata
