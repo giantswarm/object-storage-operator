@@ -56,5 +56,5 @@ func (s AzureObjectStorageService) NewObjectStorageService(ctx context.Context, 
 		return nil, errors.WithStack(err)
 	}
 
-	return NewAzureStorageService(storageClientFactory.NewAccountsClient(), storageClientFactory.NewBlobContainersClient(), logger, azureCredentials.ResourceGroup), nil
+	return NewAzureStorageService(storageClientFactory.NewAccountsClient(), storageClientFactory.NewBlobContainersClient(), logger, cluster.(AzureCluster)), nil
 }
