@@ -13,7 +13,7 @@ func NewAzureAccessService() AzureAccessServiceAdapter {
 	return AzureAccessServiceAdapter{}
 }
 
-func (s AzureAccessServiceAdapter) ConfigureRole(ctx context.Context, bucket *v1alpha1.Bucket, additionalTags map[string]string) error {
+func (s AzureAccessServiceAdapter) ConfigureRole(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	return nil
 }
 

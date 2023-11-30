@@ -40,7 +40,7 @@ func (s AWSObjectStorageService) NewAccessRoleService(ctx context.Context, logge
 		return nil, errors.WithStack(err)
 	}
 
-	return NewIamService(iam.NewFromConfig(cfg), logger, parsedRole.AccountID, cluster), nil
+	return NewIamService(iam.NewFromConfig(cfg), logger, parsedRole.AccountID, cluster.(AWSCluster)), nil
 }
 
 func (s AWSObjectStorageService) NewObjectStorageService(ctx context.Context, logger logr.Logger, cluster cluster.Cluster) (objectstorage.ObjectStorageService, error) {
@@ -55,5 +55,5 @@ func (s AWSObjectStorageService) NewObjectStorageService(ctx context.Context, lo
 	credentials := stscreds.NewAssumeRoleProvider(stsClient, awsCredentials.Role)
 	cfg.Credentials = aws.NewCredentialsCache(credentials)
 
-	return NewS3Service(s3.NewFromConfig(cfg), logger, cluster.GetRegion()), nil
+	return NewS3Service(s3.NewFromConfig(cfg), logger, cluster.(AWSCluster)), nil
 }

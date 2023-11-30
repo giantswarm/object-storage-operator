@@ -37,7 +37,6 @@ func NewAzureStorageService(storageAccountClient *armstorage.AccountsClient, blo
 // firstly, it checks if the Storage Account exists
 // then, it checks if the Blob Container exists
 func (s AzureObjectStorageAdapter) ExistsBucket(ctx context.Context, bucket *v1alpha1.Bucket) (bool, error) {
-	s.logger.Info("CHECK BUCKET EXISTENCE - Entering")
 	// Check if storage account exists on Azure
 	existsStorageAccount, err := s.existsStorageAccount(ctx)
 	if err != nil {
@@ -85,15 +84,14 @@ func (s AzureObjectStorageAdapter) existsStorageAccount(ctx context.Context) (bo
 
 // CreateBucket creates the Storage Account if it not exists AND the Storage Container
 func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
-	s.logger.Info("CREATION BUCKET - Entering")
-	// Check if storage account exists on Azure
+	// Check if Storage Account exists on Azure
 	existsStorageAccount, err := s.existsStorageAccount(ctx)
 	if err != nil {
 		return err
 	}
-	// If StorageAccount does not exists, we need to create it first
+	// If Storage Account does not exists, we need to create it first
 	if !existsStorageAccount {
-		// Create storage account
+		// Create Storage Account
 		pollerResp, err := s.storageAccountClient.BeginCreate(
 			ctx,
 			s.cluster.Credentials.ResourceGroup,
@@ -122,23 +120,54 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 		}
 		_, err = pollerResp.PollUntilDone(ctx, nil)
 		if err != nil {
+			s.logger.Error(err, fmt.Sprintf("Error creating Storage Account %s", s.storageAccountName))
 			return err
 		}
 		s.logger.Info(fmt.Sprintf("Storage Account %s created", s.storageAccountName))
 	}
 
+	// Create Storage Container
+	_, err = s.blobContainerClient.Create(
+		ctx,
+		s.cluster.Credentials.ResourceGroup,
+		s.storageAccountName,
+		bucket.Spec.Name,
+		armstorage.BlobContainer{
+			ContainerProperties: &armstorage.ContainerProperties{
+				PublicAccess: to.Ptr(armstorage.PublicAccessNone),
+			},
+		},
+		nil,
+	)
+	if err != nil {
+		s.logger.Error(err, fmt.Sprintf("Error creating Storage Container %s", bucket.Spec.Name))
+		return err
+	}
+	s.logger.Info(fmt.Sprintf("Storage Container %s created", bucket.Spec.Name))
+
 	return nil
 }
 
-// DeleteBucket deletes the Storage Container AND the Storage Account
+// DeleteBucket deletes the Storage Container (we don't delete the Storage Account because it may be useful for other observability resources)
 func (s AzureObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
-	//TODO
-	s.logger.Info("DELETION BUCKET - Entering")
+	_, err := s.blobContainerClient.Delete(
+		ctx,
+		s.cluster.Credentials.ResourceGroup,
+		s.storageAccountName,
+		bucket.Spec.Name,
+		nil,
+	)
+	if err != nil {
+		s.logger.Error(err, fmt.Sprintf("Error deleting Storage Container %s", bucket.Spec.Name))
+		return err
+	}
+	s.logger.Info(fmt.Sprintf("Storage Container %s deleted", bucket.Spec.Name))
+
 	return nil
 }
 
 // ConfigureBucket set lifecycle rules (expiration on blob)
-func (s AzureObjectStorageAdapter) ConfigureBucket(ctx context.Context, bucket *v1alpha1.Bucket, additionalTags map[string]string) error {
+func (s AzureObjectStorageAdapter) ConfigureBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	var err error
 	// If expiration is not set, we remove all lifecycle rules
 	err = s.setLifecycleRules(ctx, bucket)
@@ -146,7 +175,7 @@ func (s AzureObjectStorageAdapter) ConfigureBucket(ctx context.Context, bucket *
 		return err
 	}
 
-	err = s.setTags(ctx, bucket, additionalTags)
+	err = s.setTags(ctx, bucket)
 	return err
 }
 
@@ -155,7 +184,39 @@ func (s AzureObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket
 	return nil
 }
 
-func (s AzureObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1.Bucket, additionalTags map[string]string) error {
-	//TODO
-	return nil
+func (s AzureObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1.Bucket) error {
+	tags := map[string]*string{}
+	for _, t := range bucket.Spec.Tags {
+		// We use this to avoid pointer issues in range loops.
+		tag := t
+		if tag.Key != "" && tag.Value != "" {
+			tags[tag.Key] = &tag.Value
+		}
+	}
+	for k, v := range s.cluster.Tags {
+		// We use this to avoid pointer issues in range loops.
+		key := k
+		value := v
+		if key != "" && value != "" {
+			tags[key] = &value
+		}
+	}
+
+	// Updating Storage Container Metadata with tags (cluster additionalTags + Bucket tags)
+	_, err := s.blobContainerClient.Update(
+		ctx,
+		s.cluster.Credentials.ResourceGroup,
+		s.storageAccountName,
+		bucket.Spec.Name,
+		armstorage.BlobContainer{
+			ContainerProperties: &armstorage.ContainerProperties{
+				Metadata: tags,
+			},
+		},
+		nil,
+	)
+	if err != nil {
+		s.logger.Error(err, fmt.Sprintf("Error updating Storage Container %s Metadata", bucket.Spec.Name))
+	}
+	return err
 }

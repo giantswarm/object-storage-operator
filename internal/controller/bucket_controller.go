@@ -81,11 +81,11 @@ func (r BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 
 	// Handle non-deleted clusters
-	return r.reconcileNormal(ctx, objectStorageService, accessRoleService, bucket, cluster.GetTags())
+	return r.reconcileNormal(ctx, objectStorageService, accessRoleService, bucket)
 }
 
 // reconcileCreate creates the bucket.
-func (r BucketReconciler) reconcileNormal(ctx context.Context, objectStorageService objectstorage.ObjectStorageService, accessRoleService objectstorage.AccessRoleService, bucket *v1alpha1.Bucket, additionalTags map[string]string) (ctrl.Result, error) {
+func (r BucketReconciler) reconcileNormal(ctx context.Context, objectStorageService objectstorage.ObjectStorageService, accessRoleService objectstorage.AccessRoleService, bucket *v1alpha1.Bucket) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
 	originalBucket := bucket.DeepCopy()
@@ -115,7 +115,7 @@ func (r BucketReconciler) reconcileNormal(ctx context.Context, objectStorageServ
 
 	logger.Info("Configuring bucket settings")
 	// If expiration is not set, we remove all lifecycle rules
-	err = objectStorageService.ConfigureBucket(ctx, bucket, additionalTags)
+	err = objectStorageService.ConfigureBucket(ctx, bucket)
 	if err != nil {
 		logger.Error(err, "Bucket could not be configured")
 		return ctrl.Result{}, errors.WithStack(err)
@@ -134,7 +134,7 @@ func (r BucketReconciler) reconcileNormal(ctx context.Context, objectStorageServ
 
 	if bucket.Spec.AccessRole != nil && bucket.Spec.AccessRole.RoleName != "" {
 		logger.Info("Creating bucket access role")
-		err = accessRoleService.ConfigureRole(ctx, bucket, additionalTags)
+		err = accessRoleService.ConfigureRole(ctx, bucket)
 		if err != nil {
 			return ctrl.Result{}, errors.WithStack(err)
 		}
