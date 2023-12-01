@@ -10,6 +10,8 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage"
 	"github.com/go-logr/logr"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
 )
@@ -127,7 +129,6 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 		}
 		_, err = pollerResp.PollUntilDone(ctx, nil)
 		if err != nil {
-			s.logger.Error(err, fmt.Sprintf("Error creating Storage Account %s", s.storageAccountName))
 			return err
 		}
 		s.logger.Info(fmt.Sprintf("Storage Account %s created", s.storageAccountName))
@@ -147,10 +148,48 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 		nil,
 	)
 	if err != nil {
-		s.logger.Error(err, fmt.Sprintf("Error creating Storage Container %s", bucket.Spec.Name))
 		return err
 	}
 	s.logger.Info(fmt.Sprintf("Storage Container %s created", bucket.Spec.Name))
+
+	// Create a K8S Secret to store Storage Account Access Key
+	// First, we retrieve Storage Account Access Key on Azure
+	listKeys, err := s.storageAccountClient.ListKeys(
+		ctx,
+		s.cluster.GetResourceGroup(),
+		s.storageAccountName,
+		nil,
+	)
+	if err != nil {
+		return fmt.Errorf("Impossible to retrieve Access Keys from Storage Account %s", s.storageAccountName)
+	}
+	// Then, we retrieve the Access Key for 'key1'
+	secretName := s.cluster.GetName() + "-logging-secret"
+	foundKey1 := false
+	for _, k := range listKeys.Keys {
+		if *k.KeyName == "key1" {
+			foundKey1 = true
+			// Finally, we create the Secret
+			secret := &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      secretName,
+					Namespace: "loki",
+				},
+				Data: map[string][]byte{
+					"key": []byte(*k.Value),
+				},
+			}
+			err := s.cluster.GetClient().Create(ctx, secret, nil)
+			if err != nil {
+				return err
+			}
+			s.logger.Info(fmt.Sprintf("Secret %s created", secretName))
+			break
+		}
+	}
+	if !foundKey1 {
+		return fmt.Errorf("Impossible to retrieve Access Keys 'key1' from Storage Account %s", s.storageAccountName)
+	}
 
 	return nil
 }

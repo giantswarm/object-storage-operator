@@ -71,6 +71,7 @@ func (c AWSClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, erro
 	}
 
 	return AWSCluster{
+		Client:     c.Client,
 		Name:       c.ManagementCluster.Name,
 		Namespace:  c.ManagementCluster.Namespace,
 		BaseDomain: c.ManagementCluster.BaseDomain,
@@ -107,6 +108,7 @@ func (c AWSClusterGetter) getClusterCRIdentiy(ctx context.Context, clusterIdenti
 
 // AWSCluster implements Cluster Interface with AWS data
 type AWSCluster struct {
+	Client      client.Client
 	Name        string
 	Namespace   string
 	BaseDomain  string
@@ -117,6 +119,10 @@ type AWSCluster struct {
 
 type AWSCredentials struct {
 	Role string
+}
+
+func (c AWSCluster) GetClient() client.Client {
+	return c.Client
 }
 
 func (c AWSCluster) GetName() string {

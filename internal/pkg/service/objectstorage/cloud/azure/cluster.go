@@ -114,6 +114,7 @@ func (c AzureClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, er
 	}
 
 	return AzureCluster{
+		Client:     c.Client,
 		Name:       c.ManagementCluster.Name,
 		Namespace:  c.ManagementCluster.Namespace,
 		BaseDomain: c.ManagementCluster.BaseDomain,
@@ -155,6 +156,7 @@ func (c AzureClusterGetter) getClusterCRIdentiy(ctx context.Context, clusterIden
 
 // AzureCluster implements Cluster Interface with Azure data
 type AzureCluster struct {
+	Client      client.Client
 	Name        string
 	Namespace   string
 	BaseDomain  string
@@ -170,6 +172,10 @@ type AzureCredentials struct {
 	ClientID       string
 	TenantID       string
 	SecretRef      corev1.Secret
+}
+
+func (c AzureCluster) GetClient() client.Client {
+	return c.Client
 }
 
 func (c AzureCluster) GetName() string {
