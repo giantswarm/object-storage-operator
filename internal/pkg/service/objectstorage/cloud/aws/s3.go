@@ -49,7 +49,7 @@ func (s S3ObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1alph
 	_, err := s.s3Client.CreateBucket(ctx, &s3.CreateBucketInput{
 		Bucket: aws.String(bucket.Spec.Name),
 		CreateBucketConfiguration: &types.CreateBucketConfiguration{
-			LocationConstraint: types.BucketLocationConstraint(s.cluster.Region),
+			LocationConstraint: types.BucketLocationConstraint(s.cluster.GetRegion()),
 		},
 	})
 	return err
@@ -120,7 +120,7 @@ func (s S3ObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1.Bu
 			tags = append(tags, types.Tag{Key: &tag.Key, Value: &tag.Value})
 		}
 	}
-	for k, v := range s.cluster.Tags {
+	for k, v := range s.cluster.GetTags() {
 		// We use this to avoid pointer issues in range loops.
 		key := k
 		value := v

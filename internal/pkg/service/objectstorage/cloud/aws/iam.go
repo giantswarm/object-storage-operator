@@ -69,7 +69,7 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 			tags = append(tags, types.Tag{Key: &tag.Key, Value: &tag.Value})
 		}
 	}
-	for k, v := range s.cluster.Tags {
+	for k, v := range s.cluster.GetTags() {
 		// We use this to avoid pointer issues in range loops.
 		key := k
 		value := v
@@ -249,8 +249,8 @@ func (s *IAMAccessRoleServiceAdapter) cleanAttachedPolicies(ctx context.Context,
 }
 
 func (s IAMAccessRoleServiceAdapter) templateTrustPolicy(bucket *v1alpha1.Bucket) string {
-	policy := strings.ReplaceAll(trustIdentityPolicy, "@CLOUD_DOMAIN@", s.cluster.BaseDomain)
-	policy = strings.ReplaceAll(policy, "@INSTALLATION@", s.cluster.Name)
+	policy := strings.ReplaceAll(trustIdentityPolicy, "@CLOUD_DOMAIN@", s.cluster.GetBaseDomain())
+	policy = strings.ReplaceAll(policy, "@INSTALLATION@", s.cluster.GetName())
 	policy = strings.ReplaceAll(policy, "@ACCOUNT_ID@", s.accountId)
 	policy = strings.ReplaceAll(policy, "@SERVICE_ACCOUNT_NAMESPACE@", bucket.Spec.AccessRole.ServiceAccountNamespace)
 	policy = strings.ReplaceAll(policy, "@SERVICE_ACCOUNT_NAME@", bucket.Spec.AccessRole.ServiceAccountName)

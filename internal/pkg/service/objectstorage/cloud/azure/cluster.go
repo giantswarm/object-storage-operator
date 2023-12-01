@@ -75,14 +75,14 @@ func (c AzureClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, er
 	if !found || err != nil {
 		return nil, errors.New("Missing or incorrect identity.type")
 	}
-	clientID, tenantID, clientSecretName, clientSecretNamespace := "", "", "", ""
-	if typeIdentity == "UserAssignedMSI" {
+	clientID, tenantID := "", ""
+	switch typeIdentity {
+	case "UserAssignedMSI":
 		clientID, found, err = unstructured.NestedString(clusterIdentity.Object, "spec", "clientID")
 		if !found || err != nil {
 			return nil, errors.New("Missing or incorrect identity.clientID")
 		}
-	}
-	if typeIdentity == "ManualServicePrincipal" {
+	case "ManualServicePrincipal":
 		tenantID, found, err = unstructured.NestedString(clusterIdentity.Object, "spec", "tenantID")
 		if !found || err != nil {
 			return nil, errors.New("Missing or incorrect identity.tenantID")
@@ -91,22 +91,26 @@ func (c AzureClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, er
 		if !found || err != nil {
 			return nil, errors.New("Missing or incorrect identity.clientID")
 		}
-		clientSecretName, found, err = unstructured.NestedString(clusterIdentity.Object, "spec", "clientSecret", "name")
+		clientSecretName, found, err := unstructured.NestedString(clusterIdentity.Object, "spec", "clientSecret", "name")
 		if !found || err != nil {
 			return nil, errors.New("Missing or incorrect identity.clientSecret.name")
 		}
-		clientSecretNamespace, found, err = unstructured.NestedString(clusterIdentity.Object, "spec", "clientSecret", "namespace")
+		clientSecretNamespace, found, err := unstructured.NestedString(clusterIdentity.Object, "spec", "clientSecret", "namespace")
 		if !found || err != nil {
 			return nil, errors.New("Missing or incorrect identity.clientSecret.namespace")
 		}
-		clientSecretName := types.NamespacedName{
-			Namespace: clientSecretNamespace,
-			Name:      clientSecretName,
-		}
-		err = c.Client.Get(ctx, clientSecretName, &secret)
+		err = c.Client.Get(
+			ctx,
+			types.NamespacedName{
+				Namespace: clientSecretNamespace,
+				Name:      clientSecretName,
+			},
+			&secret)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
+	default:
+		return nil, errors.Errorf("Unsupported TypeIdentity %s", typeIdentity)
 	}
 
 	return AzureCluster{
@@ -190,4 +194,8 @@ func (c AzureCluster) GetTags() map[string]string {
 
 func (c AzureCluster) GetCredentials() cluster.Credentials {
 	return c.Credentials
+}
+
+func (c AzureCluster) GetResourceGroup() string {
+	return c.Credentials.ResourceGroup
 }

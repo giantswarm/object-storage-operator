@@ -35,7 +35,7 @@ func NewAzureStorageService(storageAccountClient *armstorage.AccountsClient, blo
 		logger:                   logger,
 		cluster:                  cluster,
 		// We choose to name storage account <installationName>observability (Azure requirements avoid special character like "-")
-		storageAccountName: cluster.Name + "observability",
+		storageAccountName: cluster.GetName() + "observability",
 	}
 }
 
@@ -55,7 +55,7 @@ func (s AzureObjectStorageAdapter) ExistsBucket(ctx context.Context, bucket *v1a
 	// Check BlobContainer name exists in StorageAccount
 	_, err = s.blobContainerClient.Get(
 		ctx,
-		s.cluster.Credentials.ResourceGroup,
+		s.cluster.GetResourceGroup(),
 		s.storageAccountName,
 		bucket.Spec.Name,
 		nil)
@@ -100,16 +100,16 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 		// Create Storage Account
 		pollerResp, err := s.storageAccountClient.BeginCreate(
 			ctx,
-			s.cluster.Credentials.ResourceGroup,
+			s.cluster.GetResourceGroup(),
 			s.storageAccountName,
 			armstorage.AccountCreateParameters{
 				Kind: to.Ptr(armstorage.KindBlobStorage),
 				SKU: &armstorage.SKU{
 					Name: to.Ptr(armstorage.SKUNameStandardLRS),
 				},
-				Location: to.Ptr(s.cluster.Region),
+				Location: to.Ptr(s.cluster.GetRegion()),
 				Properties: &armstorage.AccountPropertiesCreateParameters{
-					AccessTier: to.Ptr(armstorage.AccessTierCool),
+					AccessTier: to.Ptr(armstorage.AccessTierHot),
 					Encryption: &armstorage.Encryption{
 						Services: &armstorage.EncryptionServices{
 							Blob: &armstorage.EncryptionService{
@@ -119,6 +119,7 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 						},
 						KeySource: to.Ptr(armstorage.KeySourceMicrosoftStorage),
 					},
+					EnableHTTPSTrafficOnly: to.Ptr(true),
 				},
 			}, nil)
 		if err != nil {
@@ -135,7 +136,7 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 	// Create Storage Container
 	_, err = s.blobContainerClient.Create(
 		ctx,
-		s.cluster.Credentials.ResourceGroup,
+		s.cluster.GetResourceGroup(),
 		s.storageAccountName,
 		bucket.Spec.Name,
 		armstorage.BlobContainer{
@@ -154,20 +155,21 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 	return nil
 }
 
-// DeleteBucket deletes the Storage Container (we don't delete the Storage Account because it may be useful for other observability resources)
+// DeleteBucket deletes the Storage Account (Storage Container will be deleted by cascade)
+// Here, we decided to have a Storage Account dedicated to a Storage Container (relation 1 - 1)
+// We want to prevent the Storage Account from being used by anyone
 func (s AzureObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
-	_, err := s.blobContainerClient.Delete(
+	_, err := s.storageAccountClient.Delete(
 		ctx,
-		s.cluster.Credentials.ResourceGroup,
+		s.cluster.GetResourceGroup(),
 		s.storageAccountName,
-		bucket.Spec.Name,
 		nil,
 	)
 	if err != nil {
-		s.logger.Error(err, fmt.Sprintf("Error deleting Storage Container %s", bucket.Spec.Name))
+		s.logger.Error(err, fmt.Sprintf("Error deleting Storage Account %s and Storage Container %s", s.storageAccountName, bucket.Spec.Name))
 		return err
 	}
-	s.logger.Info(fmt.Sprintf("Storage Container %s deleted", bucket.Spec.Name))
+	s.logger.Info(fmt.Sprintf("Storage Account %s and Storage Container %s deleted", s.storageAccountName, bucket.Spec.Name))
 
 	return nil
 }
@@ -190,7 +192,7 @@ func (s AzureObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket
 	if bucket.Spec.ExpirationPolicy != nil {
 		_, err := s.managementPoliciesClient.CreateOrUpdate(
 			ctx,
-			s.cluster.Credentials.ResourceGroup,
+			s.cluster.GetResourceGroup(),
 			s.storageAccountName,
 			armstorage.ManagementPolicyNameDefault,
 			armstorage.ManagementPolicy{
@@ -228,13 +230,23 @@ func (s AzureObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket
 		return err
 	}
 
+	// No Lifecycle Policy defines in the bucket CR, we delete it in the Storage Account
 	_, err := s.managementPoliciesClient.Delete(
 		ctx,
-		s.cluster.Credentials.ResourceGroup,
+		s.cluster.GetResourceGroup(),
 		s.storageAccountName,
 		LifecycleRuleName,
 		nil,
 	)
+	if err != nil {
+		var respErr *azcore.ResponseError
+		if errors.As(err, &respErr) {
+			// If the Lifecycle policy does not exists, it's not an error
+			if respErr.StatusCode == http.StatusNotFound {
+				return nil
+			}
+		}
+	}
 	return err
 }
 
@@ -248,7 +260,7 @@ func (s AzureObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1
 			tags[tag.Key] = &tag.Value
 		}
 	}
-	for k, v := range s.cluster.Tags {
+	for k, v := range s.cluster.GetTags() {
 		// We use this to avoid pointer issues in range loops.
 		key := k
 		value := v
@@ -260,7 +272,7 @@ func (s AzureObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1
 	// Updating Storage Container Metadata with tags (cluster additionalTags + Bucket tags)
 	_, err := s.blobContainerClient.Update(
 		ctx,
-		s.cluster.Credentials.ResourceGroup,
+		s.cluster.GetResourceGroup(),
 		s.storageAccountName,
 		bucket.Spec.Name,
 		armstorage.BlobContainer{
