@@ -180,7 +180,7 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 					"accountKey":  []byte(*k.Value),
 				},
 			}
-			err := s.cluster.GetClient().Create(ctx, secret, nil)
+			err := s.cluster.GetClient().Create(ctx, secret)
 			if err != nil {
 				return err
 			}
