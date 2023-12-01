@@ -27,6 +27,8 @@ spec:
   allowPrivilegeEscalation: false
   {{ if eq .Values.managementCluster.provider.kind "capz" -}}
   hostNetwork: true
+  {{- else }}
+  hostNetwork: false
   {{- end }}
   hostIPC: false
   hostPID: false
