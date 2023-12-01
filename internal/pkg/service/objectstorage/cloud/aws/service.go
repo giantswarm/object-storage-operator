@@ -13,6 +13,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 
+	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage"
 )
@@ -43,7 +44,7 @@ func (s AWSObjectStorageService) NewAccessRoleService(ctx context.Context, logge
 	return NewIamService(iam.NewFromConfig(cfg), logger, parsedRole.AccountID, cluster.(AWSCluster)), nil
 }
 
-func (s AWSObjectStorageService) NewObjectStorageService(ctx context.Context, logger logr.Logger, cluster cluster.Cluster) (objectstorage.ObjectStorageService, error) {
+func (s AWSObjectStorageService) NewObjectStorageService(ctx context.Context, logger logr.Logger, cluster cluster.Cluster, bucket *v1alpha1.Bucket) (objectstorage.ObjectStorageService, error) {
 	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(cluster.GetRegion()))
 	if err != nil {
 		return nil, err

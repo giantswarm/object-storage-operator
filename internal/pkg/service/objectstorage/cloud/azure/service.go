@@ -10,6 +10,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 
+	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage"
 )
@@ -21,7 +22,7 @@ func (s AzureObjectStorageService) NewAccessRoleService(ctx context.Context, log
 	return NewAzureAccessService(), nil
 }
 
-func (s AzureObjectStorageService) NewObjectStorageService(ctx context.Context, logger logr.Logger, cluster cluster.Cluster) (objectstorage.ObjectStorageService, error) {
+func (s AzureObjectStorageService) NewObjectStorageService(ctx context.Context, logger logr.Logger, cluster cluster.Cluster, bucket *v1alpha1.Bucket) (objectstorage.ObjectStorageService, error) {
 	var cred azcore.TokenCredential
 	var err error
 
@@ -56,5 +57,5 @@ func (s AzureObjectStorageService) NewObjectStorageService(ctx context.Context, 
 		return nil, errors.WithStack(err)
 	}
 
-	return NewAzureStorageService(storageClientFactory.NewAccountsClient(), storageClientFactory.NewBlobContainersClient(), storageClientFactory.NewManagementPoliciesClient(), logger, cluster.(AzureCluster)), nil
+	return NewAzureStorageService(storageClientFactory.NewAccountsClient(), storageClientFactory.NewBlobContainersClient(), storageClientFactory.NewManagementPoliciesClient(), logger, cluster.(AzureCluster), bucket), nil
 }

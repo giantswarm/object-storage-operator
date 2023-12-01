@@ -9,7 +9,9 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage"
+	"github.com/aquilax/truncate"
 	"github.com/go-logr/logr"
+	sanitize "github.com/mrz1836/go-sanitize"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -29,15 +31,14 @@ type AzureObjectStorageAdapter struct {
 	storageAccountName       string
 }
 
-func NewAzureStorageService(storageAccountClient *armstorage.AccountsClient, blobContainerClient *armstorage.BlobContainersClient, managementPoliciesClient *armstorage.ManagementPoliciesClient, logger logr.Logger, cluster AzureCluster) AzureObjectStorageAdapter {
+func NewAzureStorageService(storageAccountClient *armstorage.AccountsClient, blobContainerClient *armstorage.BlobContainersClient, managementPoliciesClient *armstorage.ManagementPoliciesClient, logger logr.Logger, cluster AzureCluster, bucket *v1alpha1.Bucket) AzureObjectStorageAdapter {
 	return AzureObjectStorageAdapter{
 		storageAccountClient:     storageAccountClient,
 		blobContainerClient:      blobContainerClient,
 		managementPoliciesClient: managementPoliciesClient,
 		logger:                   logger,
 		cluster:                  cluster,
-		// We choose to name storage account <installationName>observability (Azure requirements avoid special character like "-")
-		storageAccountName: cluster.GetName() + "observability",
+		storageAccountName:       sanitizeStorageAccountName(bucket.Spec.Name),
 	}
 }
 
@@ -164,26 +165,26 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 		return fmt.Errorf("Impossible to retrieve Access Keys from Storage Account %s", s.storageAccountName)
 	}
 	// Then, we retrieve the Access Key for 'key1'
-	secretName := s.cluster.GetName() + "-logging-secret"
 	foundKey1 := false
 	for _, k := range listKeys.Keys {
 		if *k.KeyName == "key1" {
 			foundKey1 = true
-			// Finally, we create the Secret
+			// Finally, we create the Secret into the bucket namespace
 			secret := &v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      secretName,
-					Namespace: "loki",
+					Name:      s.storageAccountName,
+					Namespace: bucket.Namespace,
 				},
 				Data: map[string][]byte{
-					"key": []byte(*k.Value),
+					"accountName": []byte(s.storageAccountName),
+					"accountKey":  []byte(*k.Value),
 				},
 			}
 			err := s.cluster.GetClient().Create(ctx, secret, nil)
 			if err != nil {
 				return err
 			}
-			s.logger.Info(fmt.Sprintf("Secret %s created", secretName))
+			s.logger.Info(fmt.Sprintf("Secret %s created", s.storageAccountName))
 			break
 		}
 	}
@@ -325,4 +326,10 @@ func (s AzureObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1
 		s.logger.Error(err, fmt.Sprintf("Error updating Storage Container %s Metadata", bucket.Spec.Name))
 	}
 	return err
+}
+
+// sanitizeStorageAccountName returns the name following Azure rules (alphanumerical characters only + 24 characters MAX)
+// more details https://learn.microsoft.com/en-us/rest/api/storagerp/storage-accounts/get-properties?view=rest-storagerp-2023-01-01&tabs=HTTP#uri-parameters
+func sanitizeStorageAccountName(name string) string {
+	return truncate.Truncate(sanitize.AlphaNumeric(name, false), 24, "", truncate.PositionEnd)
 }
