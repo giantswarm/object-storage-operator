@@ -3,7 +3,20 @@
 ## Bucket controller
 
 This controller reconciles `Buckets`. It creates a cloud provider bucket in the Management Cluster Region.
-It currently only supports AWS S3 on CAPA management clusters.
+It currently only supports AWS S3 on CAPA management clusters and Azure Storage Container on CAPZ management clusters.
+
+### CAPZ resources
+
+To handle an object storage on Azure, we need to create:
+
+- a storage account
+- a storage container
+
+We choose to create a unique relation Storage Account - Storage Container to have a proper clean up when a bucket is deleted. This way, there won't have orphan storage account on Azure.
+
+We add a lifecyle management rule on the storage account to clean old data (`bucket.spec.expirationPolicy.days`)
+
+When the object storage is created, we retrieve the Access Key and create a secret in the bucket namespace containing the name of the storage account and the access key. This secret is necessary for the application desiring to use this object storage.
 
 # Testing
 

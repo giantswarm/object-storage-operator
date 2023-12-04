@@ -62,7 +62,7 @@ func (c AzureClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, er
 	if !found || len(clusterTags) == 0 {
 		logger.Info("No cluster tags found")
 	}
-	var secret corev1.Secret
+	var secret = corev1.Secret{}
 	resourceGroup, found, err := unstructured.NestedString(cluster.Object, "spec", "resourceGroup")
 	if !found || err != nil {
 		return nil, errors.New("Missing or incorrect resourceGroup")
