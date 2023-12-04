@@ -87,6 +87,16 @@ rules:
     - azureidentitybindings
     verbs:
     - create
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - create
+      - update
+      - delete
+      - get
+      - list
   {{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1

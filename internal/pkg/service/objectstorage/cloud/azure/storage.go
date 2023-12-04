@@ -14,6 +14,7 @@ import (
 	sanitize "github.com/mrz1836/go-sanitize"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
 )
@@ -174,6 +175,9 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      s.storageAccountName,
 					Namespace: bucket.Namespace,
+					Labels: map[string]string{
+						"giantswarm.io/managed-by": "object-storage-operator",
+					},
 				},
 				Data: map[string][]byte{
 					"accountName": []byte(s.storageAccountName),
@@ -199,6 +203,7 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 // Here, we decided to have a Storage Account dedicated to a Storage Container (relation 1 - 1)
 // We want to prevent the Storage Account from being used by anyone
 func (s AzureObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
+	// We delete the Storage Account, which delete the Storage Container
 	_, err := s.storageAccountClient.Delete(
 		ctx,
 		s.cluster.GetResourceGroup(),
@@ -210,6 +215,26 @@ func (s AzureObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1a
 		return err
 	}
 	s.logger.Info(fmt.Sprintf("Storage Account %s and Storage Container %s deleted", s.storageAccountName, bucket.Spec.Name))
+
+	// We delete the Azure Credentials secret
+	var secret v1.Secret
+	err = s.cluster.GetClient().Get(
+		ctx,
+		types.NamespacedName{
+			Namespace: bucket.Namespace,
+			Name:      s.storageAccountName,
+		},
+		&secret)
+	if err != nil {
+		s.logger.Error(err, fmt.Sprintf("Impossible to retrieve Secret %s", s.storageAccountName))
+		return err
+	}
+	err = s.cluster.GetClient().Delete(ctx, &secret)
+	if err != nil {
+		s.logger.Error(err, fmt.Sprintf("Impossible to delete Secret %s", s.storageAccountName))
+		return err
+	}
+	s.logger.Info(fmt.Sprintf("Secret %s deleted", s.storageAccountName))
 
 	return nil
 }
