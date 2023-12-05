@@ -25,11 +25,7 @@ spec:
   supplementalGroups:
     rule: RunAsAny
   allowPrivilegeEscalation: false
-  {{ if eq .Values.managementCluster.provider.kind "capz" -}}
-  hostNetwork: true
-  {{- else }}
-  hostNetwork: false
-  {{- end }}
+  hostNetwork: {{ eq .Values.managementCluster.provider.kind "capz" }}
   hostIPC: false
   hostPID: false
 {{- end }}

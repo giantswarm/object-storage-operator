@@ -2,8 +2,6 @@ package cluster
 
 import (
 	"context"
-
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . ClusterGetter
@@ -12,7 +10,6 @@ type ClusterGetter interface {
 }
 
 type Cluster interface {
-	GetClient() client.Client
 	GetName() string
 	GetNamespace() string
 	GetBaseDomain() string

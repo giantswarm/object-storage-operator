@@ -66,7 +66,7 @@ func (r BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	if err != nil {
 		return ctrl.Result{}, errors.WithStack(err)
 	}
-	objectStorageService, err := r.NewObjectStorageService(ctx, logger, cluster, bucket)
+	objectStorageService, err := r.NewObjectStorageService(ctx, logger, cluster, r.Client)
 	if err != nil {
 		return ctrl.Result{}, errors.WithStack(err)
 	}

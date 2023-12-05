@@ -174,10 +174,6 @@ type AzureCredentials struct {
 	SecretRef      corev1.Secret
 }
 
-func (c AzureCluster) GetClient() client.Client {
-	return c.Client
-}
-
 func (c AzureCluster) GetName() string {
 	return c.Name
 }

@@ -121,10 +121,6 @@ type AWSCredentials struct {
 	Role string
 }
 
-func (c AWSCluster) GetClient() client.Client {
-	return c.Client
-}
-
 func (c AWSCluster) GetName() string {
 	return c.Name
 }

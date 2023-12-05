@@ -6,8 +6,8 @@ import (
 	"sync"
 
 	"github.com/go-logr/logr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage"
 )
@@ -28,13 +28,13 @@ type FakeObjectStorageServiceFactory struct {
 		result1 objectstorage.AccessRoleService
 		result2 error
 	}
-	NewObjectStorageServiceStub        func(context.Context, logr.Logger, cluster.Cluster, *v1alpha1.Bucket) (objectstorage.ObjectStorageService, error)
+	NewObjectStorageServiceStub        func(context.Context, logr.Logger, cluster.Cluster, client.Client) (objectstorage.ObjectStorageService, error)
 	newObjectStorageServiceMutex       sync.RWMutex
 	newObjectStorageServiceArgsForCall []struct {
 		arg1 context.Context
 		arg2 logr.Logger
 		arg3 cluster.Cluster
-		arg4 *v1alpha1.Bucket
+		arg4 client.Client
 	}
 	newObjectStorageServiceReturns struct {
 		result1 objectstorage.ObjectStorageService
@@ -114,14 +114,14 @@ func (fake *FakeObjectStorageServiceFactory) NewAccessRoleServiceReturnsOnCall(i
 	}{result1, result2}
 }
 
-func (fake *FakeObjectStorageServiceFactory) NewObjectStorageService(arg1 context.Context, arg2 logr.Logger, arg3 cluster.Cluster, arg4 *v1alpha1.Bucket) (objectstorage.ObjectStorageService, error) {
+func (fake *FakeObjectStorageServiceFactory) NewObjectStorageService(arg1 context.Context, arg2 logr.Logger, arg3 cluster.Cluster, arg4 client.Client) (objectstorage.ObjectStorageService, error) {
 	fake.newObjectStorageServiceMutex.Lock()
 	ret, specificReturn := fake.newObjectStorageServiceReturnsOnCall[len(fake.newObjectStorageServiceArgsForCall)]
 	fake.newObjectStorageServiceArgsForCall = append(fake.newObjectStorageServiceArgsForCall, struct {
 		arg1 context.Context
 		arg2 logr.Logger
 		arg3 cluster.Cluster
-		arg4 *v1alpha1.Bucket
+		arg4 client.Client
 	}{arg1, arg2, arg3, arg4})
 	stub := fake.NewObjectStorageServiceStub
 	fakeReturns := fake.newObjectStorageServiceReturns
@@ -142,13 +142,13 @@ func (fake *FakeObjectStorageServiceFactory) NewObjectStorageServiceCallCount() 
 	return len(fake.newObjectStorageServiceArgsForCall)
 }
 
-func (fake *FakeObjectStorageServiceFactory) NewObjectStorageServiceCalls(stub func(context.Context, logr.Logger, cluster.Cluster, *v1alpha1.Bucket) (objectstorage.ObjectStorageService, error)) {
+func (fake *FakeObjectStorageServiceFactory) NewObjectStorageServiceCalls(stub func(context.Context, logr.Logger, cluster.Cluster, client.Client) (objectstorage.ObjectStorageService, error)) {
 	fake.newObjectStorageServiceMutex.Lock()
 	defer fake.newObjectStorageServiceMutex.Unlock()
 	fake.NewObjectStorageServiceStub = stub
 }
 
-func (fake *FakeObjectStorageServiceFactory) NewObjectStorageServiceArgsForCall(i int) (context.Context, logr.Logger, cluster.Cluster, *v1alpha1.Bucket) {
+func (fake *FakeObjectStorageServiceFactory) NewObjectStorageServiceArgsForCall(i int) (context.Context, logr.Logger, cluster.Cluster, client.Client) {
 	fake.newObjectStorageServiceMutex.RLock()
 	defer fake.newObjectStorageServiceMutex.RUnlock()
 	argsForCall := fake.newObjectStorageServiceArgsForCall[i]

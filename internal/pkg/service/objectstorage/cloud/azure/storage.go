@@ -15,6 +15,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
 )
@@ -29,17 +30,19 @@ type AzureObjectStorageAdapter struct {
 	managementPoliciesClient *armstorage.ManagementPoliciesClient
 	logger                   logr.Logger
 	cluster                  AzureCluster
-	storageAccountName       string
+	client                   client.Client
+	listStorageAccountName   []string
 }
 
-func NewAzureStorageService(storageAccountClient *armstorage.AccountsClient, blobContainerClient *armstorage.BlobContainersClient, managementPoliciesClient *armstorage.ManagementPoliciesClient, logger logr.Logger, cluster AzureCluster, bucket *v1alpha1.Bucket) AzureObjectStorageAdapter {
+func NewAzureStorageService(storageAccountClient *armstorage.AccountsClient, blobContainerClient *armstorage.BlobContainersClient, managementPoliciesClient *armstorage.ManagementPoliciesClient, logger logr.Logger, cluster AzureCluster, client client.Client) AzureObjectStorageAdapter {
 	return AzureObjectStorageAdapter{
 		storageAccountClient:     storageAccountClient,
 		blobContainerClient:      blobContainerClient,
 		managementPoliciesClient: managementPoliciesClient,
 		logger:                   logger,
 		cluster:                  cluster,
-		storageAccountName:       sanitizeStorageAccountName(bucket.Spec.Name),
+		client:                   client,
+		listStorageAccountName:   []string{},
 	}
 }
 
@@ -48,7 +51,7 @@ func NewAzureStorageService(storageAccountClient *armstorage.AccountsClient, blo
 // then, it checks if the Blob Container exists
 func (s AzureObjectStorageAdapter) ExistsBucket(ctx context.Context, bucket *v1alpha1.Bucket) (bool, error) {
 	// Check if storage account exists on Azure
-	existsStorageAccount, err := s.existsStorageAccount(ctx)
+	existsStorageAccount, err := s.existsStorageAccount(ctx, bucket.Spec.Name)
 	if err != nil {
 		return false, err
 	}
@@ -60,7 +63,7 @@ func (s AzureObjectStorageAdapter) ExistsBucket(ctx context.Context, bucket *v1a
 	_, err = s.blobContainerClient.Get(
 		ctx,
 		s.cluster.GetResourceGroup(),
-		s.storageAccountName,
+		s.getStorageAccountName(bucket.Spec.Name),
 		bucket.Spec.Name,
 		nil)
 	if err != nil {
@@ -78,11 +81,11 @@ func (s AzureObjectStorageAdapter) ExistsBucket(ctx context.Context, bucket *v1a
 }
 
 // ExistsStorageAccount checks Storage Account existence on Azure
-func (s AzureObjectStorageAdapter) existsStorageAccount(ctx context.Context) (bool, error) {
+func (s AzureObjectStorageAdapter) existsStorageAccount(ctx context.Context, bucketName string) (bool, error) {
 	availability, err := s.storageAccountClient.CheckNameAvailability(
 		ctx,
 		armstorage.AccountCheckNameAvailabilityParameters{
-			Name: to.Ptr(s.storageAccountName),
+			Name: to.Ptr(s.getStorageAccountName(bucketName)),
 			Type: to.Ptr("Microsoft.Storage/storageAccounts"),
 		},
 		nil)
@@ -94,8 +97,9 @@ func (s AzureObjectStorageAdapter) existsStorageAccount(ctx context.Context) (bo
 
 // CreateBucket creates the Storage Account if it not exists AND the Storage Container
 func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
+	storageAccountName := s.getStorageAccountName(bucket.Spec.Name)
 	// Check if Storage Account exists on Azure
-	existsStorageAccount, err := s.existsStorageAccount(ctx)
+	existsStorageAccount, err := s.existsStorageAccount(ctx, storageAccountName)
 	if err != nil {
 		return err
 	}
@@ -105,7 +109,7 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 		pollerResp, err := s.storageAccountClient.BeginCreate(
 			ctx,
 			s.cluster.GetResourceGroup(),
-			s.storageAccountName,
+			storageAccountName,
 			armstorage.AccountCreateParameters{
 				Kind: to.Ptr(armstorage.KindBlobStorage),
 				SKU: &armstorage.SKU{
@@ -133,14 +137,14 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 		if err != nil {
 			return err
 		}
-		s.logger.Info(fmt.Sprintf("Storage Account %s created", s.storageAccountName))
+		s.logger.Info(fmt.Sprintf("Storage Account %s created", storageAccountName))
 	}
 
 	// Create Storage Container
 	_, err = s.blobContainerClient.Create(
 		ctx,
 		s.cluster.GetResourceGroup(),
-		s.storageAccountName,
+		storageAccountName,
 		bucket.Spec.Name,
 		armstorage.BlobContainer{
 			ContainerProperties: &armstorage.ContainerProperties{
@@ -159,11 +163,11 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 	listKeys, err := s.storageAccountClient.ListKeys(
 		ctx,
 		s.cluster.GetResourceGroup(),
-		s.storageAccountName,
+		storageAccountName,
 		nil,
 	)
 	if err != nil {
-		return fmt.Errorf("Impossible to retrieve Access Keys from Storage Account %s", s.storageAccountName)
+		return fmt.Errorf("Impossible to retrieve Access Keys from Storage Account %s", storageAccountName)
 	}
 	// Then, we retrieve the Access Key for 'key1'
 	foundKey1 := false
@@ -173,27 +177,27 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 			// Finally, we create the Secret into the bucket namespace
 			secret := &v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      s.storageAccountName,
+					Name:      storageAccountName,
 					Namespace: bucket.Namespace,
 					Labels: map[string]string{
 						"giantswarm.io/managed-by": "object-storage-operator",
 					},
 				},
 				Data: map[string][]byte{
-					"accountName": []byte(s.storageAccountName),
+					"accountName": []byte(storageAccountName),
 					"accountKey":  []byte(*k.Value),
 				},
 			}
-			err := s.cluster.GetClient().Create(ctx, secret)
+			err := s.client.Create(ctx, secret)
 			if err != nil {
 				return err
 			}
-			s.logger.Info(fmt.Sprintf("Secret %s created", s.storageAccountName))
+			s.logger.Info(fmt.Sprintf("Secret %s created", storageAccountName))
 			break
 		}
 	}
 	if !foundKey1 {
-		return fmt.Errorf("Impossible to retrieve Access Keys 'key1' from Storage Account %s", s.storageAccountName)
+		return fmt.Errorf("Impossible to retrieve Access Keys 'key1' from Storage Account %s", storageAccountName)
 	}
 
 	return nil
@@ -203,38 +207,39 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 // Here, we decided to have a Storage Account dedicated to a Storage Container (relation 1 - 1)
 // We want to prevent the Storage Account from being used by anyone
 func (s AzureObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
+	storageAccountName := s.getStorageAccountName(bucket.Spec.Name)
 	// We delete the Storage Account, which delete the Storage Container
 	_, err := s.storageAccountClient.Delete(
 		ctx,
 		s.cluster.GetResourceGroup(),
-		s.storageAccountName,
+		storageAccountName,
 		nil,
 	)
 	if err != nil {
-		s.logger.Error(err, fmt.Sprintf("Error deleting Storage Account %s and Storage Container %s", s.storageAccountName, bucket.Spec.Name))
+		s.logger.Error(err, fmt.Sprintf("Error deleting Storage Account %s and Storage Container %s", storageAccountName, bucket.Spec.Name))
 		return err
 	}
-	s.logger.Info(fmt.Sprintf("Storage Account %s and Storage Container %s deleted", s.storageAccountName, bucket.Spec.Name))
+	s.logger.Info(fmt.Sprintf("Storage Account %s and Storage Container %s deleted", storageAccountName, bucket.Spec.Name))
 
 	// We delete the Azure Credentials secret
-	var secret v1.Secret
-	err = s.cluster.GetClient().Get(
+	var secret = v1.Secret{}
+	err = s.client.Get(
 		ctx,
 		types.NamespacedName{
 			Namespace: bucket.Namespace,
-			Name:      s.storageAccountName,
+			Name:      storageAccountName,
 		},
 		&secret)
 	if err != nil {
-		s.logger.Error(err, fmt.Sprintf("Impossible to retrieve Secret %s", s.storageAccountName))
+		s.logger.Error(err, fmt.Sprintf("Impossible to retrieve Secret %s", storageAccountName))
 		return err
 	}
-	err = s.cluster.GetClient().Delete(ctx, &secret)
+	err = s.client.Delete(ctx, &secret)
 	if err != nil {
-		s.logger.Error(err, fmt.Sprintf("Impossible to delete Secret %s", s.storageAccountName))
+		s.logger.Error(err, fmt.Sprintf("Impossible to delete Secret %s", storageAccountName))
 		return err
 	}
-	s.logger.Info(fmt.Sprintf("Secret %s deleted", s.storageAccountName))
+	s.logger.Info(fmt.Sprintf("Secret %s deleted", storageAccountName))
 
 	return nil
 }
@@ -254,11 +259,12 @@ func (s AzureObjectStorageAdapter) ConfigureBucket(ctx context.Context, bucket *
 
 // setLifecycleRules set a lifecycle rule on the Storage Account to delete Blobs older than X days
 func (s AzureObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket *v1alpha1.Bucket) error {
+	storageAccountName := s.getStorageAccountName(bucket.Spec.Name)
 	if bucket.Spec.ExpirationPolicy != nil {
 		_, err := s.managementPoliciesClient.CreateOrUpdate(
 			ctx,
 			s.cluster.GetResourceGroup(),
-			s.storageAccountName,
+			storageAccountName,
 			armstorage.ManagementPolicyNameDefault,
 			armstorage.ManagementPolicy{
 				Properties: &armstorage.ManagementPolicyProperties{
@@ -290,7 +296,7 @@ func (s AzureObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket
 			nil,
 		)
 		if err != nil {
-			s.logger.Error(err, fmt.Sprintf("Error creating/updating Policy Rule for Storage Account %s", s.storageAccountName))
+			s.logger.Error(err, fmt.Sprintf("Error creating/updating Policy Rule for Storage Account %s", storageAccountName))
 		}
 		return err
 	}
@@ -299,7 +305,7 @@ func (s AzureObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket
 	_, err := s.managementPoliciesClient.Delete(
 		ctx,
 		s.cluster.GetResourceGroup(),
-		s.storageAccountName,
+		storageAccountName,
 		LifecycleRuleName,
 		nil,
 	)
@@ -317,6 +323,7 @@ func (s AzureObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket
 
 // setTags set cluster additionalTags and bucket tags into Storage Container Metadata
 func (s AzureObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1.Bucket) error {
+	storageAccountName := s.getStorageAccountName(bucket.Spec.Name)
 	tags := map[string]*string{}
 	for _, t := range bucket.Spec.Tags {
 		// We use this to avoid pointer issues in range loops.
@@ -338,7 +345,7 @@ func (s AzureObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1
 	_, err := s.blobContainerClient.Update(
 		ctx,
 		s.cluster.GetResourceGroup(),
-		s.storageAccountName,
+		storageAccountName,
 		bucket.Spec.Name,
 		armstorage.BlobContainer{
 			ContainerProperties: &armstorage.ContainerProperties{
@@ -353,8 +360,20 @@ func (s AzureObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1
 	return err
 }
 
-// sanitizeStorageAccountName returns the name following Azure rules (alphanumerical characters only + 24 characters MAX)
+// getStorageAccountName returns the sanitized bucket name if already computed or compute it and return it
+func (s *AzureObjectStorageAdapter) getStorageAccountName(bucketName string) string {
+	sanitizeName := sanitizeAlphanumeric24(bucketName)
+	for _, name := range s.listStorageAccountName {
+		if sanitizeName == name {
+			return sanitizeName
+		}
+	}
+	s.listStorageAccountName = append(s.listStorageAccountName, sanitizeName)
+	return sanitizeName
+}
+
+// sanitizeAlphanumeric24 returns the name following Azure rules (alphanumerical characters only + 24 characters MAX)
 // more details https://learn.microsoft.com/en-us/rest/api/storagerp/storage-accounts/get-properties?view=rest-storagerp-2023-01-01&tabs=HTTP#uri-parameters
-func sanitizeStorageAccountName(name string) string {
+func sanitizeAlphanumeric24(name string) string {
 	return truncate.Truncate(sanitize.AlphaNumeric(name, false), 24, "", truncate.PositionEnd)
 }

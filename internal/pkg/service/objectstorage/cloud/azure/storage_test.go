@@ -7,7 +7,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func Test_sanitizeStorageAccountName(t *testing.T) {
+func Test_sanitizeAlphanumeric24(t *testing.T) {
 	testCases := []struct {
 		name           string
 		inputString    string
@@ -34,7 +34,7 @@ func Test_sanitizeStorageAccountName(t *testing.T) {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			t.Log(tc.name)
 
-			storageAccountName := sanitizeStorageAccountName(tc.inputString)
+			storageAccountName := sanitizeAlphanumeric24(tc.inputString)
 
 			if !cmp.Equal(storageAccountName, tc.expectedString) {
 				t.Fatalf("\n\n%s\n", cmp.Diff(tc.expectedString, storageAccountName))
