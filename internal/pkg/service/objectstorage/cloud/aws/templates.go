@@ -12,16 +12,16 @@ const rolePolicy = `{
 				"s3:DeleteObject"
 			],
 			"Resource": [
-			"arn:aws:s3:::@BUCKET_NAME@",
-			"arn:aws:s3:::@BUCKET_NAME@/*"
+				"arn:aws:s3:::@BUCKET_NAME@",
+				"arn:aws:s3:::@BUCKET_NAME@/*"
 			]
 		},
 		{
 			"Effect": "Allow",
 			"Action": [
-			"s3:GetAccessPoint",
-			"s3:GetAccountPublicAccessBlock",
-			"s3:ListAccessPoints"
+				"s3:GetAccessPoint",
+				"s3:GetAccountPublicAccessBlock",
+				"s3:ListAccessPoints"
 			],
 			"Resource": "*"
 		}
@@ -40,6 +40,27 @@ const trustIdentityPolicy = `{
 			"Condition": {
 				"StringEquals": {
 					"irsa.@INSTALLATION@.@CLOUD_DOMAIN@:sub": "system:serviceaccount:@SERVICE_ACCOUNT_NAMESPACE@:@SERVICE_ACCOUNT_NAME@"
+				}
+			}
+		}
+	]
+}`
+
+const bucketPolicy = `{
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Sid": "EnforceSSLOnly",
+			"Effect": "Deny",
+			"Principal": "*",
+			"Action": "s3:*",
+			"Resource": [
+				"arn:aws:s3:::@BUCKET_NAME@",
+				"arn:aws:s3:::@BUCKET_NAME@/*"
+			],
+			"Condition": {
+				"Bool": {
+					"aws:SecureTransport": "false"
 				}
 			}
 		}

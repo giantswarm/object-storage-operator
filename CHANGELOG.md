@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Abstract managementcluster (refactoring).
+- Enforce encryption in transit for s3 Buckets.
 
 ## [0.3.0] - 2023-11-22
 
