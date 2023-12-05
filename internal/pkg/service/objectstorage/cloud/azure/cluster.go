@@ -47,7 +47,7 @@ func (c AzureClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, er
 	}
 	if !found || clusterIdentityName == "" {
 		logger.Info("Missing identity, skipping")
-		return nil, errors.New("missing management cluster identify")
+		return nil, errors.New("Missing management cluster identityRef")
 	}
 	clusterIdentity, err := c.getClusterCRIdentiy(ctx, clusterIdentityName)
 	if err != nil {
@@ -73,7 +73,7 @@ func (c AzureClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, er
 	}
 	typeIdentity, found, err := unstructured.NestedString(clusterIdentity.Object, "spec", "type")
 	if !found || err != nil {
-		return nil, errors.New("Missing or incorrect identity.type")
+		return nil, errors.New("Missing or incorrect identity type")
 	}
 	clientID, tenantID := "", ""
 	switch typeIdentity {

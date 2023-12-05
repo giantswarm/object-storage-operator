@@ -44,7 +44,7 @@ func (c AWSClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, erro
 	}
 	if !found || clusterIdentityName == "" {
 		logger.Info("Missing identity, skipping")
-		return nil, errors.New("missing management cluster identify")
+		return nil, errors.New("Missing management cluster identityRef")
 	}
 	clusterIdentity, err := c.getClusterCRIdentiy(ctx, clusterIdentityName)
 	if err != nil {
@@ -58,7 +58,7 @@ func (c AWSClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, erro
 		return nil, errors.WithStack(err)
 	}
 	if !found {
-		return nil, errors.New("missing role arn")
+		return nil, errors.New("Missing role arn")
 	}
 
 	clusterTags, found, err := unstructured.NestedStringMap(cluster.Object, "spec", "additionalTags")

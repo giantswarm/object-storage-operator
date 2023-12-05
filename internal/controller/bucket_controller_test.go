@@ -113,6 +113,7 @@ var _ = Describe("Bucket Reconciler", func() {
 				})
 				It("fails", func() {
 					Expect(reconcileErr).To(HaveOccurred())
+					Expect(reconcileErr).Should(MatchError("Missing management cluster AWSCluster CR"))
 					var existingBucket v1alpha1.Bucket
 					_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 					Expect(existingBucket.Finalizers).To(BeEmpty())
@@ -120,7 +121,7 @@ var _ = Describe("Bucket Reconciler", func() {
 			})
 
 			When("the management cluster has no identity set", func() {
-				expectedError := errors.New("missing management cluster identify")
+				expectedError := errors.New("Missing management cluster identityRef")
 				BeforeEach(func() {
 					cluster := &unstructured.Unstructured{
 						Object: map[string]interface{}{
@@ -140,6 +141,7 @@ var _ = Describe("Bucket Reconciler", func() {
 				})
 				It("fails", func() {
 					Expect(reconcileErr).To(HaveOccurred())
+					Expect(reconcileErr).Should(MatchError(expectedError))
 					var existingBucket v1alpha1.Bucket
 					_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 					Expect(existingBucket.Finalizers).To(BeEmpty())
@@ -169,6 +171,7 @@ var _ = Describe("Bucket Reconciler", func() {
 				})
 				It("fails", func() {
 					Expect(reconcileErr).To(HaveOccurred())
+					Expect(reconcileErr).Should(MatchError(expectedError))
 					var existingBucket v1alpha1.Bucket
 					_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 					Expect(existingBucket.Finalizers).To(BeEmpty())
@@ -212,6 +215,7 @@ var _ = Describe("Bucket Reconciler", func() {
 				})
 				It("fails", func() {
 					Expect(reconcileErr).To(HaveOccurred())
+					Expect(reconcileErr).To(MatchError(expectedError))
 					var existingBucket v1alpha1.Bucket
 					_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 					Expect(existingBucket.Finalizers).To(BeEmpty())
@@ -316,7 +320,7 @@ var _ = Describe("Bucket Reconciler", func() {
 					})
 				})
 
-				When("reconciling an exiting bucket", func() {
+				When("reconciling an existing bucket", func() {
 					BeforeEach(func() {
 						objectStorageService.ExistsBucketReturns(true, nil)
 					})
@@ -488,6 +492,7 @@ var _ = Describe("Bucket Reconciler", func() {
 				})
 				It("fails", func() {
 					Expect(reconcileErr).To(HaveOccurred())
+					Expect(reconcileErr).Should(MatchError(expectedError))
 					var existingBucket v1alpha1.Bucket
 					_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 					Expect(existingBucket.Finalizers).To(BeEmpty())
@@ -495,7 +500,7 @@ var _ = Describe("Bucket Reconciler", func() {
 			})
 
 			When("the management cluster has no identity set", func() {
-				expectedError := errors.New("missing management cluster identify")
+				expectedError := errors.New("Missing management cluster identify")
 				BeforeEach(func() {
 					cluster := &unstructured.Unstructured{
 						Object: map[string]interface{}{
@@ -515,6 +520,7 @@ var _ = Describe("Bucket Reconciler", func() {
 				})
 				It("fails", func() {
 					Expect(reconcileErr).To(HaveOccurred())
+					Expect(reconcileErr).Should(MatchError(expectedError))
 					var existingBucket v1alpha1.Bucket
 					_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 					Expect(existingBucket.Finalizers).To(BeEmpty())
@@ -544,14 +550,15 @@ var _ = Describe("Bucket Reconciler", func() {
 				})
 				It("fails", func() {
 					Expect(reconcileErr).To(HaveOccurred())
+					Expect(reconcileErr).Should(MatchError(expectedError))
 					var existingBucket v1alpha1.Bucket
 					_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 					Expect(existingBucket.Finalizers).To(BeEmpty())
 				})
 			})
 
-			When("management cluster identity has no role arn", func() {
-				expectedError := errors.New("Missing role arn")
+			When("management cluster identity has no type identity", func() {
+				expectedError := errors.New("Missing or incorrect identity type")
 				BeforeEach(func() {
 					clusterIdentity := &unstructured.Unstructured{
 						Object: map[string]interface{}{
@@ -561,7 +568,11 @@ var _ = Describe("Bucket Reconciler", func() {
 								"name":      reconciler.ManagementCluster.Name,
 								"namespace": reconciler.ManagementCluster.Namespace,
 							},
-							"spec": map[string]interface{}{},
+							"spec": map[string]interface{}{
+								"clientID":   "clientID",
+								"tenantID":   "tenantID",
+								"resourceID": "resourceID",
+							},
 						},
 					}
 					_ = fakeClient.Create(ctx, clusterIdentity)
@@ -587,6 +598,7 @@ var _ = Describe("Bucket Reconciler", func() {
 				})
 				It("fails", func() {
 					Expect(reconcileErr).To(HaveOccurred())
+					Expect(reconcileErr).Should(MatchError(expectedError))
 					var existingBucket v1alpha1.Bucket
 					_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 					Expect(existingBucket.Finalizers).To(BeEmpty())
@@ -606,7 +618,10 @@ var _ = Describe("Bucket Reconciler", func() {
 							"namespace": reconciler.ManagementCluster.Namespace,
 						},
 						"spec": map[string]interface{}{
-							"roleARN": "role",
+							"clientID":   "clientID",
+							"tenantID":   "tenantID",
+							"resourceID": "resourceID",
+							"type":       "UserAssignedMSI",
 						},
 					},
 				}
@@ -671,6 +686,7 @@ var _ = Describe("Bucket Reconciler", func() {
 
 					It("failed", func() {
 						Expect(reconcileErr).To(HaveOccurred())
+						Expect(reconcileErr).Should(MatchError(expectedError))
 						Expect(objectStorageService.ExistsBucketCallCount()).To(Equal(1))
 						var existingBucket v1alpha1.Bucket
 						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
@@ -775,6 +791,7 @@ var _ = Describe("Bucket Reconciler", func() {
 
 					It("was not deleted", func() {
 						Expect(reconcileErr).To(HaveOccurred())
+						Expect(reconcileErr).Should(MatchError(expectedError))
 						Expect(objectStorageService.ExistsBucketCallCount()).To(Equal(1))
 						Expect(objectStorageService.DeleteBucketCallCount()).To(Equal(1))
 						var existingBucket v1alpha1.Bucket
