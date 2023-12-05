@@ -84,7 +84,7 @@ func (s S3ObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket *v
 					ID:     aws.String("Expiration"),
 					Filter: &types.LifecycleRuleFilterMemberPrefix{Value: ""},
 					Expiration: &types.LifecycleExpiration{
-						Days: bucket.Spec.ExpirationPolicy.Days,
+						Days: &bucket.Spec.ExpirationPolicy.Days,
 					},
 				},
 			},
