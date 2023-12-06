@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Implement creation of Azure Storage Containers on CAPZ management clusters.
+
 ### Changed
 
 - Abstract managementcluster (refactoring).
