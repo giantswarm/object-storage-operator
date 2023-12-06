@@ -3,6 +3,7 @@ package aws
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -70,6 +71,12 @@ func (s S3ObjectStorageAdapter) ConfigureBucket(ctx context.Context, bucket *v1a
 		return err
 	}
 
+	// Set the bucket policy (enforce encryption in transit)
+	err = s.setBucketPolicy(ctx, bucket)
+	if err != nil {
+		return err
+	}
+
 	err = s.setTags(ctx, bucket)
 	return err
 }
@@ -101,7 +108,14 @@ func (s S3ObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket *v
 		Bucket: aws.String(bucket.Spec.Name),
 	})
 	return err
+}
 
+func (s S3ObjectStorageAdapter) setBucketPolicy(ctx context.Context, bucket *v1alpha1.Bucket) error {
+	_, err := s.s3Client.PutBucketPolicy(ctx, &s3.PutBucketPolicyInput{
+		Bucket: aws.String(bucket.Spec.Name),
+		Policy: aws.String(strings.ReplaceAll(bucketPolicy, "@BUCKET_NAME@", bucket.Spec.Name)),
+	})
+	return err
 }
 
 func (s S3ObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1.Bucket) error {
