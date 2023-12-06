@@ -105,13 +105,6 @@ func (s S3ObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket *v
 }
 
 func (s S3ObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1.Bucket) error {
-	if len(bucket.Spec.Tags) == 0 {
-		_, err := s.s3Client.DeleteBucketTagging(ctx, &s3.DeleteBucketTaggingInput{
-			Bucket: aws.String(bucket.Spec.Name),
-		})
-		return err
-	}
-
 	tags := make([]types.Tag, 0)
 	for _, t := range bucket.Spec.Tags {
 		// We use this to avoid pointer issues in range loops.
