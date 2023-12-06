@@ -8,11 +8,11 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage v1.5.0
 	github.com/aquilax/truncate v1.0.0
 	github.com/aws/aws-sdk-go-v2 v1.23.5
-	github.com/aws/aws-sdk-go-v2/config v1.25.11
-	github.com/aws/aws-sdk-go-v2/credentials v1.16.9
-	github.com/aws/aws-sdk-go-v2/service/iam v1.28.2
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.47.2
-	github.com/aws/aws-sdk-go-v2/service/sts v1.26.2
+	github.com/aws/aws-sdk-go-v2/config v1.25.12
+	github.com/aws/aws-sdk-go-v2/credentials v1.16.10
+	github.com/aws/aws-sdk-go-v2/service/iam v1.28.3
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.47.3
+	github.com/aws/aws-sdk-go-v2/service/sts v1.26.3
 	github.com/aws/smithy-go v1.18.1
 	github.com/go-logr/logr v1.3.0
 	github.com/google/go-cmp v0.6.0
@@ -40,8 +40,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.2.8 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.10.8 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.16.8 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.18.2 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.21.2 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.18.3 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.21.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
