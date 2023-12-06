@@ -14,6 +14,8 @@ type Cluster interface {
 	GetNamespace() string
 	GetBaseDomain() string
 	GetRegion() string
-	GetRole() string
 	GetTags() map[string]string
+	GetCredentials() Credentials
 }
+
+type Credentials interface{}

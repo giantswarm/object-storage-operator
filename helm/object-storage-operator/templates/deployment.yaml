@@ -57,6 +57,9 @@ spec:
           - mountPath: /home/.aws
             name: credentials
         {{- end }}
+      {{ if eq .Values.managementCluster.provider.kind "capz" -}}
+      hostNetwork: true
+      {{- end }}
       {{ if eq .Values.managementCluster.provider.kind "capa" -}}
       volumes:
       - name: credentials

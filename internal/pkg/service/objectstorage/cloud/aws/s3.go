@@ -15,16 +15,16 @@ import (
 )
 
 type S3ObjectStorageAdapter struct {
-	s3Client    *s3.Client
-	logger      logr.Logger
-	cloudRegion string
+	s3Client *s3.Client
+	logger   logr.Logger
+	cluster  AWSCluster
 }
 
-func NewS3Service(s3Client *s3.Client, logger logr.Logger, cloudRegion string) S3ObjectStorageAdapter {
+func NewS3Service(s3Client *s3.Client, logger logr.Logger, cluster AWSCluster) S3ObjectStorageAdapter {
 	return S3ObjectStorageAdapter{
-		s3Client:    s3Client,
-		logger:      logger,
-		cloudRegion: cloudRegion,
+		s3Client: s3Client,
+		logger:   logger,
+		cluster:  cluster,
 	}
 }
 func (s S3ObjectStorageAdapter) ExistsBucket(ctx context.Context, bucket *v1alpha1.Bucket) (bool, error) {
@@ -50,7 +50,7 @@ func (s S3ObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1alph
 	_, err := s.s3Client.CreateBucket(ctx, &s3.CreateBucketInput{
 		Bucket: aws.String(bucket.Spec.Name),
 		CreateBucketConfiguration: &types.CreateBucketConfiguration{
-			LocationConstraint: types.BucketLocationConstraint(s.cloudRegion),
+			LocationConstraint: types.BucketLocationConstraint(s.cluster.GetRegion()),
 		},
 	})
 	return err
@@ -63,7 +63,7 @@ func (s S3ObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1alph
 	return err
 }
 
-func (s S3ObjectStorageAdapter) ConfigureBucket(ctx context.Context, bucket *v1alpha1.Bucket, additionalTags map[string]string) error {
+func (s S3ObjectStorageAdapter) ConfigureBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	var err error
 	// If expiration is not set, we remove all lifecycle rules
 	err = s.setLifecycleRules(ctx, bucket)
@@ -77,7 +77,7 @@ func (s S3ObjectStorageAdapter) ConfigureBucket(ctx context.Context, bucket *v1a
 		return err
 	}
 
-	err = s.setTags(ctx, bucket, additionalTags)
+	err = s.setTags(ctx, bucket)
 	return err
 }
 
@@ -118,14 +118,7 @@ func (s S3ObjectStorageAdapter) setBucketPolicy(ctx context.Context, bucket *v1a
 	return err
 }
 
-func (s S3ObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1.Bucket, additionalTags map[string]string) error {
-	if len(bucket.Spec.Tags) == 0 {
-		_, err := s.s3Client.DeleteBucketTagging(ctx, &s3.DeleteBucketTaggingInput{
-			Bucket: aws.String(bucket.Spec.Name),
-		})
-		return err
-	}
-
+func (s S3ObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	tags := make([]types.Tag, 0)
 	for _, t := range bucket.Spec.Tags {
 		// We use this to avoid pointer issues in range loops.
@@ -134,7 +127,7 @@ func (s S3ObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1.Bu
 			tags = append(tags, types.Tag{Key: &tag.Key, Value: &tag.Value})
 		}
 	}
-	for k, v := range additionalTags {
+	for k, v := range s.cluster.GetTags() {
 		// We use this to avoid pointer issues in range loops.
 		key := k
 		value := v

@@ -39,6 +39,7 @@ import (
 	"github.com/giantswarm/object-storage-operator/internal/pkg/flags"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage"
 	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage/cloud/aws"
+	"github.com/giantswarm/object-storage-operator/internal/pkg/service/objectstorage/cloud/azure"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -98,6 +99,7 @@ func main() {
 		// after the manager stops then its usage might be unsafe.
 		// LeaderElectionReleaseOnCancel: true,
 	})
+
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
@@ -112,6 +114,12 @@ func main() {
 			ManagementCluster: managementCluster,
 		}
 		objectStorage = aws.AWSObjectStorageService{}
+	case "capz":
+		clusterGetter = azure.AzureClusterGetter{
+			Client:            mgr.GetClient(),
+			ManagementCluster: managementCluster,
+		}
+		objectStorage = azure.AzureObjectStorageService{}
 	default:
 		setupLog.Error(err, fmt.Sprintf("Unsupported provider %s", managementCluster.Provider))
 		os.Exit(1)
@@ -125,6 +133,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Bucket")
 		os.Exit(1)
 	}
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
