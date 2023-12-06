@@ -14,24 +14,21 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
-	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
 )
 
 type IAMAccessRoleServiceAdapter struct {
-	iamClient   *iam.Client
-	logger      logr.Logger
-	accountId   string
-	baseDomain  string
-	clusterName string
+	iamClient *iam.Client
+	logger    logr.Logger
+	accountId string
+	cluster   AWSCluster
 }
 
-func NewIamService(iamClient *iam.Client, logger logr.Logger, accountId string, cluster cluster.Cluster) IAMAccessRoleServiceAdapter {
+func NewIamService(iamClient *iam.Client, logger logr.Logger, accountId string, cluster AWSCluster) IAMAccessRoleServiceAdapter {
 	return IAMAccessRoleServiceAdapter{
-		iamClient:   iamClient,
-		logger:      logger,
-		accountId:   accountId,
-		baseDomain:  cluster.GetBaseDomain(),
-		clusterName: cluster.GetName(),
+		iamClient: iamClient,
+		logger:    logger,
+		accountId: accountId,
+		cluster:   cluster,
 	}
 }
 
@@ -57,7 +54,7 @@ func (s IAMAccessRoleServiceAdapter) getRole(ctx context.Context, roleName strin
 	return output.Role, nil
 }
 
-func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *v1alpha1.Bucket, additionalTags map[string]string) error {
+func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	roleName := bucket.Spec.AccessRole.RoleName
 	role, err := s.getRole(ctx, roleName)
 	if err != nil {
@@ -72,7 +69,7 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 			tags = append(tags, types.Tag{Key: &tag.Key, Value: &tag.Value})
 		}
 	}
-	for k, v := range additionalTags {
+	for k, v := range s.cluster.GetTags() {
 		// We use this to avoid pointer issues in range loops.
 		key := k
 		value := v
@@ -252,8 +249,8 @@ func (s *IAMAccessRoleServiceAdapter) cleanAttachedPolicies(ctx context.Context,
 }
 
 func (s IAMAccessRoleServiceAdapter) templateTrustPolicy(bucket *v1alpha1.Bucket) string {
-	policy := strings.ReplaceAll(trustIdentityPolicy, "@CLOUD_DOMAIN@", s.baseDomain)
-	policy = strings.ReplaceAll(policy, "@INSTALLATION@", s.clusterName)
+	policy := strings.ReplaceAll(trustIdentityPolicy, "@CLOUD_DOMAIN@", s.cluster.GetBaseDomain())
+	policy = strings.ReplaceAll(policy, "@INSTALLATION@", s.cluster.GetName())
 	policy = strings.ReplaceAll(policy, "@ACCOUNT_ID@", s.accountId)
 	policy = strings.ReplaceAll(policy, "@SERVICE_ACCOUNT_NAMESPACE@", bucket.Spec.AccessRole.ServiceAccountNamespace)
 	policy = strings.ReplaceAll(policy, "@SERVICE_ACCOUNT_NAME@", bucket.Spec.AccessRole.ServiceAccountName)

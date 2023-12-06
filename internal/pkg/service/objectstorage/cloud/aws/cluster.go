@@ -44,7 +44,7 @@ func (c AWSClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, erro
 	}
 	if !found || clusterIdentityName == "" {
 		logger.Info("Missing identity, skipping")
-		return nil, errors.New("missing management cluster identify")
+		return nil, errors.New("Missing management cluster identityRef")
 	}
 	clusterIdentity, err := c.getClusterCRIdentiy(ctx, clusterIdentityName)
 	if err != nil {
@@ -58,7 +58,7 @@ func (c AWSClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, erro
 		return nil, errors.WithStack(err)
 	}
 	if !found {
-		return nil, errors.New("missing role arn")
+		return nil, errors.New("Missing role arn")
 	}
 
 	clusterTags, found, err := unstructured.NestedStringMap(cluster.Object, "spec", "additionalTags")
@@ -68,16 +68,18 @@ func (c AWSClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, erro
 	}
 	if !found || len(clusterTags) == 0 {
 		logger.Info("No cluster tags found")
-		return nil, nil
 	}
 
 	return AWSCluster{
+		Client:     c.Client,
 		Name:       c.ManagementCluster.Name,
 		Namespace:  c.ManagementCluster.Namespace,
 		BaseDomain: c.ManagementCluster.BaseDomain,
 		Region:     c.ManagementCluster.Region,
-		Role:       roleArn,
 		Tags:       clusterTags,
+		Credentials: AWSCredentials{
+			Role: roleArn,
+		},
 	}, nil
 }
 
@@ -88,10 +90,7 @@ func (c AWSClusterGetter) getClusterCR(ctx context.Context) (*unstructured.Unstr
 		Kind:    KindCluster,
 		Version: VersionCluster,
 	})
-	err := c.Client.Get(ctx, client.ObjectKey{
-		Name:      c.ManagementCluster.Name,
-		Namespace: c.ManagementCluster.Namespace,
-	}, cluster)
+	err := c.Client.Get(ctx, c.ManagementCluster.ToObjectKey(c.ManagementCluster.Name, c.ManagementCluster.Namespace), cluster)
 	return cluster, errors.WithStack(err)
 }
 
@@ -103,21 +102,23 @@ func (c AWSClusterGetter) getClusterCRIdentiy(ctx context.Context, clusterIdenti
 		Version: VersionClusterIdentity,
 	})
 
-	err := c.Client.Get(ctx, client.ObjectKey{
-		Name:      clusterIdentityName,
-		Namespace: c.ManagementCluster.Namespace,
-	}, clusterIdentity)
+	err := c.Client.Get(ctx, c.ManagementCluster.ToObjectKey(clusterIdentityName, c.ManagementCluster.Namespace), clusterIdentity)
 	return clusterIdentity, errors.WithStack(err)
 }
 
 // AWSCluster implements Cluster Interface with AWS data
 type AWSCluster struct {
-	Name       string
-	Namespace  string
-	BaseDomain string
-	Region     string
-	Role       string
-	Tags       map[string]string
+	Client      client.Client
+	Name        string
+	Namespace   string
+	BaseDomain  string
+	Region      string
+	Tags        map[string]string
+	Credentials AWSCredentials
+}
+
+type AWSCredentials struct {
+	Role string
 }
 
 func (c AWSCluster) GetName() string {
@@ -136,10 +137,10 @@ func (c AWSCluster) GetRegion() string {
 	return c.Region
 }
 
-func (c AWSCluster) GetRole() string {
-	return c.Role
-}
-
 func (c AWSCluster) GetTags() map[string]string {
 	return c.Tags
+}
+
+func (c AWSCluster) GetCredentials() cluster.Credentials {
+	return c.Credentials
 }
