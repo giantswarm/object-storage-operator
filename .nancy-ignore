@@ -1,2 +1,5 @@
 # pkg:golang/k8s.io/apiserver@v0.27.2
 CVE-2020-8561 until=2024-01-02
+
+# pkg:golang/golang.org/x/crypto@v0.16.0
+CVE-2023-48795 until=2024-03-01
