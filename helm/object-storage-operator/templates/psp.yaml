@@ -30,5 +30,8 @@ spec:
   hostNetwork: {{ eq .Values.managementCluster.provider.kind "capz" }}
   hostIPC: false
   hostPID: false
+  volumes:
+  - secret
+  - projected
 {{- end }}
 {{- end }}
