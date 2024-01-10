@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix PolicyException namespace.
+- Force PolicyException deployment before install/upgrade.
 
 ## [0.4.0] - 2023-12-06
 
