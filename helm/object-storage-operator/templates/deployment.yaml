@@ -43,7 +43,7 @@ spec:
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 8081
+            port: {{ default 4444 .Values.listenPort }}
           initialDelaySeconds: 30
           timeoutSeconds: 1
         securityContext:
