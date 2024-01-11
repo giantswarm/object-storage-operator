@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2024-01-11
+
 ### Fixed
 
 - Fix listenPort to avoid 8081 already used by `azure-private-endpoint-operator`.
@@ -53,7 +55,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Implement creation of S3 buckets on CAPA management clusters.
 
-[Unreleased]: https://github.com/giantswarm/object-storage-operator/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/giantswarm/object-storage-operator/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/giantswarm/object-storage-operator/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/giantswarm/object-storage-operator/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/giantswarm/object-storage-operator/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/giantswarm/object-storage-operator/compare/v0.2.1...v0.3.0
