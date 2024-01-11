@@ -44,4 +44,4 @@ resources:
 networkPolicy:
   flavor: cilium
 
-listenPort: 4444
+listenPort: 14444
