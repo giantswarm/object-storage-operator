@@ -44,4 +44,5 @@ resources:
 networkPolicy:
   flavor: cilium
 
-listenPort: 14444
+metricsAddr: ":14000"
+probeAddr: ":14001"

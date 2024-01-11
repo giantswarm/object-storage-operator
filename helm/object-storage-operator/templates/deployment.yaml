@@ -43,7 +43,7 @@ spec:
         livenessProbe:
           httpGet:
             path: /healthz
-            port: {{ default 4444 .Values.listenPort }}
+            port: {{ trimPrefix ":" .Values.probeAddr | default 14001 }}
           initialDelaySeconds: 30
           timeoutSeconds: 1
         securityContext:
