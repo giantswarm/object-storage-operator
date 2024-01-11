@@ -30,6 +30,8 @@ spec:
         image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ default .Chart.Version .Values.image.tag }}"
         args:
           - --leader-elect
+          - --metrics-bind-address=:{{ default 14000 .Values.metricsPort }}
+          - --health-probe-bind-address=:{{ default 14001 .Values.probePort }}
           - --management-cluster-base-domain={{ .Values.managementCluster.baseDomain }}
           - --management-cluster-namespace={{ .Values.managementCluster.namespace }}
           - --management-cluster-name={{ .Values.managementCluster.name  }}
@@ -43,7 +45,7 @@ spec:
         livenessProbe:
           httpGet:
             path: /healthz
-            port: {{ trimPrefix ":" .Values.probeAddr | default 14001 }}
+            port: {{ default 14001 .Values.probePort }}
           initialDelaySeconds: 30
           timeoutSeconds: 1
         securityContext:

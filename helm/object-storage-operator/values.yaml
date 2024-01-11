@@ -44,5 +44,5 @@ resources:
 networkPolicy:
   flavor: cilium
 
-metricsAddr: ":14000"
-probeAddr: ":14001"
+metricsPort: 14000
+probePort: 14001
