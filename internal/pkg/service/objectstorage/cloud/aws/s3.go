@@ -1,9 +1,10 @@
 package aws
 
 import (
+	"bytes"
 	"context"
 	"errors"
-	"strings"
+	"text/template"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -15,16 +16,25 @@ import (
 )
 
 type S3ObjectStorageAdapter struct {
-	s3Client *s3.Client
-	logger   logr.Logger
-	cluster  AWSCluster
+	s3Client             *s3.Client
+	logger               logr.Logger
+	cluster              AWSCluster
+	bucketPolicyTemplate *template.Template
 }
 
 func NewS3Service(s3Client *s3.Client, logger logr.Logger, cluster AWSCluster) S3ObjectStorageAdapter {
+	bucketPolicyTemplate, err := template.New("bucketPolicy").Parse(bucketPolicy)
+	if err != nil {
+		panic(err)
+	}
+
 	return S3ObjectStorageAdapter{
-		s3Client: s3Client,
-		logger:   logger,
-		cluster:  cluster,
+		s3Client:             s3Client,
+		logger:               logger,
+		cluster:              cluster,
+		bucketPolicyTemplate: bucketPolicyTemplate,
+		trustIdentityPolicy:  trustIdentityPolicy,
+		rolePolicy:           rolePolicy,
 	}
 }
 func (s S3ObjectStorageAdapter) ExistsBucket(ctx context.Context, bucket *v1alpha1.Bucket) (bool, error) {
@@ -111,9 +121,14 @@ func (s S3ObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket *v
 }
 
 func (s S3ObjectStorageAdapter) setBucketPolicy(ctx context.Context, bucket *v1alpha1.Bucket) error {
-	_, err := s.s3Client.PutBucketPolicy(ctx, &s3.PutBucketPolicyInput{
+	var policy bytes.Buffer
+	err := s.bucketPolicyTemplate.Execute(&policy, BucketPolicyData{BucketName: bucket.Spec.Name})
+	if err != nil {
+		return err
+	}
+	_, err = s.s3Client.PutBucketPolicy(ctx, &s3.PutBucketPolicyInput{
 		Bucket: aws.String(bucket.Spec.Name),
-		Policy: aws.String(strings.ReplaceAll(bucketPolicy, "@BUCKET_NAME@", bucket.Spec.Name)),
+		Policy: aws.String(policy.String()),
 	})
 	return err
 }

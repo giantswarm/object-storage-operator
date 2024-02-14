@@ -1,10 +1,11 @@
 package aws
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"reflect"
-	"strings"
+	"text/template"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
@@ -17,18 +18,30 @@ import (
 )
 
 type IAMAccessRoleServiceAdapter struct {
-	iamClient *iam.Client
-	logger    logr.Logger
-	accountId string
-	cluster   AWSCluster
+	iamClient           *iam.Client
+	logger              logr.Logger
+	accountId           string
+	cluster             AWSCluster
+	trustIdentityPolicy *template.Template
+	rolePolicy          *template.Template
 }
 
 func NewIamService(iamClient *iam.Client, logger logr.Logger, accountId string, cluster AWSCluster) IAMAccessRoleServiceAdapter {
+	trustIdentityPolicy, err := template.New("trustIdentityPolicy").Parse(trustIdentityPolicy)
+	if err != nil {
+		panic(err)
+	}
+	rolePolicy, err := template.New("rolePolicy").Parse(rolePolicy)
+	if err != nil {
+		panic(err)
+	}
 	return IAMAccessRoleServiceAdapter{
-		iamClient: iamClient,
-		logger:    logger,
-		accountId: accountId,
-		cluster:   cluster,
+		iamClient:           iamClient,
+		logger:              logger,
+		accountId:           accountId,
+		cluster:             cluster,
+		trustIdentityPolicy: trustIdentityPolicy,
+		rolePolicy:          rolePolicy,
 	}
 }
 
@@ -78,12 +91,22 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 		}
 	}
 
-	trustPolicy := s.templateTrustPolicy(bucket)
+	var trustPolicy bytes.Buffer
+	err = s.trustIdentityPolicy.Execute(&trustPolicy, TrustIdentityPolicyData{
+		AccountId:               s.accountId,
+		CloudDomain:             s.cluster.GetBaseDomain(),
+		Installation:            s.cluster.GetName(),
+		ServiceAccountName:      bucket.Spec.AccessRole.ServiceAccountName,
+		ServiceAccountNamespace: bucket.Spec.AccessRole.ServiceAccountNamespace,
+	})
+	if err != nil {
+		return err
+	}
 
 	if role == nil {
 		_, err := s.iamClient.CreateRole(ctx, &iam.CreateRoleInput{
 			RoleName:                 aws.String(roleName),
-			AssumeRolePolicyDocument: aws.String(trustPolicy),
+			AssumeRolePolicyDocument: aws.String(trustPolicy.String()),
 			Description:              aws.String("Role for Giant Swarm managed Loki"),
 			Tags:                     tags,
 		})
@@ -94,7 +117,7 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 	} else {
 		_, err = s.iamClient.UpdateAssumeRolePolicy(ctx, &iam.UpdateAssumeRolePolicyInput{
 			RoleName:       aws.String(roleName),
-			PolicyDocument: aws.String(trustPolicy),
+			PolicyDocument: aws.String(trustPolicy.String()),
 		})
 		if err != nil {
 			return errors.WithStack(err)
@@ -123,10 +146,18 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 		}
 	}
 
+	var rolePolicy bytes.Buffer
+	err = s.rolePolicy.Execute(&trustPolicy, RolePolicyData{
+		BucketName: bucket.Spec.Name,
+	})
+	if err != nil {
+		return err
+	}
+
 	_, err = s.iamClient.PutRolePolicy(ctx, &iam.PutRolePolicyInput{
 		RoleName:       aws.String(roleName),
 		PolicyName:     aws.String(roleName),
-		PolicyDocument: aws.String(templateRolePolicy(bucket)),
+		PolicyDocument: aws.String(rolePolicy.String()),
 	})
 	if err != nil {
 		return errors.WithStack(err)
@@ -246,17 +277,4 @@ func (s *IAMAccessRoleServiceAdapter) cleanAttachedPolicies(ctx context.Context,
 
 	s.logger.Info("cleaned attached and inline policies from IAM Role")
 	return nil
-}
-
-func (s IAMAccessRoleServiceAdapter) templateTrustPolicy(bucket *v1alpha1.Bucket) string {
-	policy := strings.ReplaceAll(trustIdentityPolicy, "@CLOUD_DOMAIN@", s.cluster.GetBaseDomain())
-	policy = strings.ReplaceAll(policy, "@INSTALLATION@", s.cluster.GetName())
-	policy = strings.ReplaceAll(policy, "@ACCOUNT_ID@", s.accountId)
-	policy = strings.ReplaceAll(policy, "@SERVICE_ACCOUNT_NAMESPACE@", bucket.Spec.AccessRole.ServiceAccountNamespace)
-	policy = strings.ReplaceAll(policy, "@SERVICE_ACCOUNT_NAME@", bucket.Spec.AccessRole.ServiceAccountName)
-	return policy
-}
-
-func templateRolePolicy(bucket *v1alpha1.Bucket) string {
-	return strings.ReplaceAll(rolePolicy, "@BUCKET_NAME@", bucket.Spec.Name)
 }

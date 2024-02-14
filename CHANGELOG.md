@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Change rendering of bucket policies to use template/text instead of a string to be able to add extra bucket access (needed for the mimir ruler)
+
 ## [0.4.3] - 2024-01-11
 
 ### Fixed

@@ -1,5 +1,10 @@
 package aws
 
+type RolePolicyData struct {
+	BucketName       string
+	ExtraBucketNames []string
+}
+
 const rolePolicy = `{
 	"Version": "2012-10-17",
 	"Statement": [
@@ -12,8 +17,12 @@ const rolePolicy = `{
 				"s3:DeleteObject"
 			],
 			"Resource": [
-				"arn:aws:s3:::@BUCKET_NAME@",
-				"arn:aws:s3:::@BUCKET_NAME@/*"
+				{{ range _, $e := .ExtraBucketNames }}
+				"arn:aws:s3:::{{ $e }}",
+				"arn:aws:s3:::{{ $e }}/*",
+				{{ end }}
+				"arn:aws:s3:::{{ .BucketName }}",
+				"arn:aws:s3:::{{ .BucketName }}/*"
 			]
 		},
 		{
@@ -28,23 +37,36 @@ const rolePolicy = `{
 	]
 }`
 
+type TrustIdentityPolicyData struct {
+	AccountId               string
+	CloudDomain             string
+	Installation            string
+	ServiceAccountName      string
+	ServiceAccountNamespace string
+}
+
 const trustIdentityPolicy = `{
 	"Version": "2012-10-17",
 	"Statement": [
 		{
 			"Effect": "Allow",
 			"Principal": {
-				"Federated": "arn:aws:iam::@ACCOUNT_ID@:oidc-provider/irsa.@INSTALLATION@.@CLOUD_DOMAIN@"
+				"Federated": "arn:aws:iam::{{ .AccountId }}:oidc-provider/irsa.{{ .Installation }}.{{ .CloudDomain }}"
 			},
 			"Action": "sts:AssumeRoleWithWebIdentity",
 			"Condition": {
 				"StringEquals": {
-					"irsa.@INSTALLATION@.@CLOUD_DOMAIN@:sub": "system:serviceaccount:@SERVICE_ACCOUNT_NAMESPACE@:@SERVICE_ACCOUNT_NAME@"
+					"irsa.{{ .Installation }}.{{ .CloudDomain }}:sub": "system:serviceaccount:{{ .ServiceAccountNamespace }}:{{ .ServiceAccountName }}"
 				}
 			}
 		}
 	]
 }`
+
+type BucketPolicyData struct {
+	BucketName       string
+	ExtraBucketNames []string
+}
 
 const bucketPolicy = `{
 	"Version": "2012-10-17",
@@ -55,8 +77,12 @@ const bucketPolicy = `{
 			"Principal": "*",
 			"Action": "s3:*",
 			"Resource": [
-				"arn:aws:s3:::@BUCKET_NAME@",
-				"arn:aws:s3:::@BUCKET_NAME@/*"
+				{{ range _, $e := .ExtraBucketNames }}
+				"arn:aws:s3:::{{ $e }}",
+				"arn:aws:s3:::{{ $e }}/*",
+				{{ end }}
+				"arn:aws:s3:::{{ .BucketName }}",
+				"arn:aws:s3:::{{ .BucketName }}/*"
 			],
 			"Condition": {
 				"Bool": {
