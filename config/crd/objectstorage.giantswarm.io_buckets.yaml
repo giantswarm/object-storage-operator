@@ -38,6 +38,13 @@ spec:
               accessRole:
                 description: Access role that can be assumed to access the bucket
                 properties:
+                  extraBucketNames:
+                    description: ExtraBucketNames is a list of bucket names to add
+                      to the role policy in case the role needs to be able to access
+                      multiple buckets.
+                    items:
+                      type: string
+                    type: array
                   roleName:
                     description: Name of the role to create
                     type: string

@@ -147,9 +147,15 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 	}
 
 	var rolePolicy bytes.Buffer
-	err = s.rolePolicy.Execute(&trustPolicy, RolePolicyData{
+	var data = RolePolicyData{
 		BucketName: bucket.Spec.Name,
-	})
+	}
+
+	if len(bucket.Spec.AccessRole.ExtraBucketNames) > 0 {
+		data.ExtraBucketNames = bucket.Spec.AccessRole.ExtraBucketNames
+	}
+
+	err = s.rolePolicy.Execute(&rolePolicy, data)
 	if err != nil {
 		return err
 	}

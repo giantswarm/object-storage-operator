@@ -17,9 +17,9 @@ const rolePolicy = `{
 				"s3:DeleteObject"
 			],
 			"Resource": [
-				{{ range _, $e := .ExtraBucketNames }}
-				"arn:aws:s3:::{{ $e }}",
-				"arn:aws:s3:::{{ $e }}/*",
+				{{ range .ExtraBucketNames }}
+				"arn:aws:s3:::{{ . }}",
+				"arn:aws:s3:::{{ . }}/*",
 				{{ end }}
 				"arn:aws:s3:::{{ .BucketName }}",
 				"arn:aws:s3:::{{ .BucketName }}/*"
@@ -64,8 +64,7 @@ const trustIdentityPolicy = `{
 }`
 
 type BucketPolicyData struct {
-	BucketName       string
-	ExtraBucketNames []string
+	BucketName string
 }
 
 const bucketPolicy = `{
@@ -77,10 +76,6 @@ const bucketPolicy = `{
 			"Principal": "*",
 			"Action": "s3:*",
 			"Resource": [
-				{{ range _, $e := .ExtraBucketNames }}
-				"arn:aws:s3:::{{ $e }}",
-				"arn:aws:s3:::{{ $e }}/*",
-				{{ end }}
 				"arn:aws:s3:::{{ .BucketName }}",
 				"arn:aws:s3:::{{ .BucketName }}/*"
 			],

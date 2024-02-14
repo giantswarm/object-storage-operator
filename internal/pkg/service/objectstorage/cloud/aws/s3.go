@@ -33,8 +33,6 @@ func NewS3Service(s3Client *s3.Client, logger logr.Logger, cluster AWSCluster) S
 		logger:               logger,
 		cluster:              cluster,
 		bucketPolicyTemplate: bucketPolicyTemplate,
-		trustIdentityPolicy:  trustIdentityPolicy,
-		rolePolicy:           rolePolicy,
 	}
 }
 func (s S3ObjectStorageAdapter) ExistsBucket(ctx context.Context, bucket *v1alpha1.Bucket) (bool, error) {
@@ -122,7 +120,7 @@ func (s S3ObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket *v
 
 func (s S3ObjectStorageAdapter) setBucketPolicy(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	var policy bytes.Buffer
-	err := s.bucketPolicyTemplate.Execute(&policy, BucketPolicyData{BucketName: bucket.Spec.Name})
+	err := s.bucketPolicyTemplate.Execute(&policy, BucketPolicyData{bucket.Spec.Name})
 	if err != nil {
 		return err
 	}
