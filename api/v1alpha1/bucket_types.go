@@ -46,6 +46,9 @@ type BucketAccessRole struct {
 	// Name of the role to create
 	RoleName string `json:"roleName"`
 
+	// ExtraBucketNames is a list of bucket names to add to the role policy in case the role needs to be able to access multiple buckets.
+	ExtraBucketNames []string `json:"extraBucketNames,omitempty"`
+
 	// Name of the service account
 	ServiceAccountName string `json:"serviceAccountName"`
 
