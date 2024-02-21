@@ -13,7 +13,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/iam v1.30.1
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.50.2
 	github.com/aws/aws-sdk-go-v2/service/sts v1.27.1
-	github.com/aws/smithy-go v1.20.0
+	github.com/aws/smithy-go v1.20.1
 	github.com/go-logr/logr v1.4.1
 	github.com/google/go-cmp v0.6.0
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.8.1
