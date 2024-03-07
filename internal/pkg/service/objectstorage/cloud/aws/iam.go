@@ -125,7 +125,7 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 
 		// Update tags (need to untag with existing keys then retag)
 		if !reflect.DeepEqual(role.Tags, tags) {
-			tagKeys := make([]string, len(role.Tags))
+			tagKeys := []string{}
 			for _, tag := range role.Tags {
 				tagKeys = append(tagKeys, *tag.Key)
 			}
