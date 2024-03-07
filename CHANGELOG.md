@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
+### Changed
 
-- Fix `port` type from integer to string.
+- Set metrics port in deployment and use it in PodMonitor spec.
 
 ## [0.5.1] - 2024-03-06
 

@@ -48,6 +48,10 @@ spec:
             port: {{ default 14001 .Values.probePort }}
           initialDelaySeconds: 30
           timeoutSeconds: 1
+        ports:
+        - containerPort: {{ default 14000 .Values.metricsPort }}
+          name: http
+          protocol: TCP
         securityContext:
           {{- with .Values.containerSecurityContext }}
           {{- . | toYaml | nindent 10 }}
