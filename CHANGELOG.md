@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix `ConfigureRole` method while untagging bucket.
+- Fix `ConfigureRole` method while untagging bucket (removing empty value in array creation).
 
 ## [0.5.2] - 2024-03-07
 
