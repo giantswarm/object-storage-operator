@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `port` type from integer to string.
+
 ## [0.5.1] - 2024-03-06
 
 ### Changed
