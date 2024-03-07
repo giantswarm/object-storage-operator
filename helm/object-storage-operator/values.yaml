@@ -44,5 +44,5 @@ resources:
 networkPolicy:
   flavor: cilium
 
-metricsPort: "14000"
+metricsPort: 14000
 probePort: 14001
