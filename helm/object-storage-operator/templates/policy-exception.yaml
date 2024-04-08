@@ -1,4 +1,4 @@
-{{- if not .Values.global.podSecurityStandards.enforced }}
+{{- if .Values.global.podSecurityStandards.enforced }}
 {{- if .Capabilities.APIVersions.Has "kyverno.io/v2alpha1/PolicyException" }}
 {{- if eq .Values.managementCluster.provider.kind "capz" }}
 apiVersion: kyverno.io/v2alpha1
