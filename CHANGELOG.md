@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.4] - 2024-04-08
+
+### Fixed
+
+- Fix KyvernoPolicyException to apply when podSecurityStandard is enabled.
+
 ## [0.5.3] - 2024-03-07
 
 ### Fixed
@@ -85,7 +91,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Implement creation of S3 buckets on CAPA management clusters.
 
-[Unreleased]: https://github.com/giantswarm/object-storage-operator/compare/v0.5.3...HEAD
+[Unreleased]: https://github.com/giantswarm/object-storage-operator/compare/v0.5.4...HEAD
+[0.5.4]: https://github.com/giantswarm/object-storage-operator/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/giantswarm/object-storage-operator/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/giantswarm/object-storage-operator/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/giantswarm/object-storage-operator/compare/v0.5.0...v0.5.1
