@@ -17,7 +17,7 @@ require (
 	github.com/go-logr/logr v1.4.1
 	github.com/google/go-cmp v0.6.0
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.8.1
-	github.com/mrz1836/go-sanitize v1.3.1
+	github.com/mrz1836/go-sanitize v1.3.2
 	github.com/onsi/ginkgo/v2 v2.17.1
 	github.com/onsi/gomega v1.33.0
 	github.com/pkg/errors v0.9.1
