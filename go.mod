@@ -19,7 +19,7 @@ require (
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.8.1
 	github.com/mrz1836/go-sanitize v1.3.2
 	github.com/onsi/ginkgo/v2 v2.17.2
-	github.com/onsi/gomega v1.33.0
+	github.com/onsi/gomega v1.33.1
 	github.com/pkg/errors v0.9.1
 	k8s.io/api v0.28.4
 	k8s.io/apimachinery v0.28.4
