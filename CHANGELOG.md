@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Add basic tag key sanitization for azure bucket tags as they need to match c# identifiers.
+
 ## [0.5.4] - 2024-04-08
 
 ### Fixed

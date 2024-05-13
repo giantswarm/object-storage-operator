@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
@@ -321,6 +322,10 @@ func (s AzureObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket
 	return err
 }
 
+func sanitizeTagKey(tagName string) string {
+	return strings.ReplaceAll(tagName, "-", "_")
+}
+
 // setTags set cluster additionalTags and bucket tags into Storage Container Metadata
 func (s AzureObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	storageAccountName := s.getStorageAccountName(bucket.Spec.Name)
@@ -329,7 +334,7 @@ func (s AzureObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1
 		// We use this to avoid pointer issues in range loops.
 		tag := t
 		if tag.Key != "" && tag.Value != "" {
-			tags[tag.Key] = &tag.Value
+			tags[sanitizeTagKey(tag.Key)] = &tag.Value
 		}
 	}
 	for k, v := range s.cluster.GetTags() {
@@ -337,7 +342,7 @@ func (s AzureObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1
 		key := k
 		value := v
 		if key != "" && value != "" {
-			tags[key] = &value
+			tags[sanitizeTagKey(key)] = &value
 		}
 	}
 
