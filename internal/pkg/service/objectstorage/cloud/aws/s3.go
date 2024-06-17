@@ -120,7 +120,10 @@ func (s S3ObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket *v
 
 func (s S3ObjectStorageAdapter) setBucketPolicy(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	var policy bytes.Buffer
-	err := s.bucketPolicyTemplate.Execute(&policy, BucketPolicyData{bucket.Spec.Name})
+	err := s.bucketPolicyTemplate.Execute(&policy, BucketPolicyData{
+		AWSDomain:  awsDomain(s.cluster.Region),
+		BucketName: bucket.Spec.Name,
+	})
 	if err != nil {
 		return err
 	}

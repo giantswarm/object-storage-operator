@@ -67,6 +67,14 @@ func (s IAMAccessRoleServiceAdapter) getRole(ctx context.Context, roleName strin
 	return output.Role, nil
 }
 
+func (s IAMAccessRoleServiceAdapter) irsaDomain() string {
+	if isChinaRegion(s.cluster.Region) {
+		return fmt.Sprintf("s3.%s.amazonaws.com.cn/%s-g8s-%s-oidc-pod-identity-v2", s.cluster.Region, s.accountId, s.cluster.GetName())
+	} else {
+		return fmt.Sprintf("irsa.%s.%s", s.cluster.Name, s.cluster.GetBaseDomain())
+	}
+}
+
 func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	roleName := bucket.Spec.AccessRole.RoleName
 	role, err := s.getRole(ctx, roleName)
@@ -94,8 +102,8 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 	var trustPolicy bytes.Buffer
 	err = s.trustIdentityPolicy.Execute(&trustPolicy, TrustIdentityPolicyData{
 		AccountId:               s.accountId,
-		CloudDomain:             s.cluster.GetBaseDomain(),
-		Installation:            s.cluster.GetName(),
+		AWSDomain:               awsDomain(s.cluster.Region),
+		CloudFrontDomain:        s.irsaDomain(),
 		ServiceAccountName:      bucket.Spec.AccessRole.ServiceAccountName,
 		ServiceAccountNamespace: bucket.Spec.AccessRole.ServiceAccountNamespace,
 	})
@@ -148,11 +156,9 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 
 	var rolePolicy bytes.Buffer
 	var data = RolePolicyData{
-		BucketName: bucket.Spec.Name,
-	}
-
-	if len(bucket.Spec.AccessRole.ExtraBucketNames) > 0 {
-		data.ExtraBucketNames = bucket.Spec.AccessRole.ExtraBucketNames
+		AWSDomain:        awsDomain(s.cluster.Region),
+		BucketName:       bucket.Spec.Name,
+		ExtraBucketNames: bucket.Spec.AccessRole.ExtraBucketNames,
 	}
 
 	err = s.rolePolicy.Execute(&rolePolicy, data)

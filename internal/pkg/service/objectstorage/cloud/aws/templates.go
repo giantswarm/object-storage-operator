@@ -1,8 +1,27 @@
 package aws
 
+import (
+	"strings"
+)
+
 type RolePolicyData struct {
+	AWSDomain        string
 	BucketName       string
 	ExtraBucketNames []string
+}
+
+func awsDomain(region string) string {
+	domain := "aws"
+
+	if isChinaRegion(region) {
+		domain = "aws-cn"
+	}
+
+	return domain
+}
+
+func isChinaRegion(region string) bool {
+	return strings.Contains(region, "cn-")
 }
 
 const rolePolicy = `{
@@ -18,11 +37,11 @@ const rolePolicy = `{
 			],
 			"Resource": [
 				{{ range .ExtraBucketNames }}
-				"arn:aws:s3:::{{ . }}",
-				"arn:aws:s3:::{{ . }}/*",
+				"arn:{{ .AWSDomain }}:s3:::{{ . }}",
+				"arn:{{ .AWSDomain }}:s3:::{{ . }}/*",
 				{{ end }}
-				"arn:aws:s3:::{{ .BucketName }}",
-				"arn:aws:s3:::{{ .BucketName }}/*"
+				"arn:{{ .AWSDomain }}:s3:::{{ .BucketName }}",
+				"arn:{{ .AWSDomain }}:s3:::{{ .BucketName }}/*"
 			]
 		},
 		{
@@ -39,8 +58,8 @@ const rolePolicy = `{
 
 type TrustIdentityPolicyData struct {
 	AccountId               string
-	CloudDomain             string
-	Installation            string
+	AWSDomain               string
+	CloudFrontDomain        string
 	ServiceAccountName      string
 	ServiceAccountNamespace string
 }
@@ -51,12 +70,12 @@ const trustIdentityPolicy = `{
 		{
 			"Effect": "Allow",
 			"Principal": {
-				"Federated": "arn:aws:iam::{{ .AccountId }}:oidc-provider/irsa.{{ .Installation }}.{{ .CloudDomain }}"
+				"Federated": "arn:{{ .AWSDomain }}:iam::{{ .AccountId }}:oidc-provider/{{ .CloudFrontDomain }}"
 			},
 			"Action": "sts:AssumeRoleWithWebIdentity",
 			"Condition": {
 				"StringEquals": {
-					"irsa.{{ .Installation }}.{{ .CloudDomain }}:sub": "system:serviceaccount:{{ .ServiceAccountNamespace }}:{{ .ServiceAccountName }}"
+					"{{ .CloudFrontDomain }}:sub": "system:serviceaccount:{{ .ServiceAccountNamespace }}:{{ .ServiceAccountName }}"
 				}
 			}
 		}
@@ -64,6 +83,7 @@ const trustIdentityPolicy = `{
 }`
 
 type BucketPolicyData struct {
+	AWSDomain  string
 	BucketName string
 }
 
@@ -76,8 +96,8 @@ const bucketPolicy = `{
 			"Principal": "*",
 			"Action": "s3:*",
 			"Resource": [
-				"arn:aws:s3:::{{ .BucketName }}",
-				"arn:aws:s3:::{{ .BucketName }}/*"
+				"arn:{{ .AWSDomain }}:s3:::{{ .BucketName }}",
+				"arn:{{ .AWSDomain }}:s3:::{{ .BucketName }}/*"
 			],
 			"Condition": {
 				"Bool": {
