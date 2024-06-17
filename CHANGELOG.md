@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2024-06-17
+
 ### Fixed
 
 - Fix object-storage-operator templating.
@@ -107,7 +109,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Implement creation of S3 buckets on CAPA management clusters.
 
-[Unreleased]: https://github.com/giantswarm/object-storage-operator/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/giantswarm/object-storage-operator/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/giantswarm/object-storage-operator/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/giantswarm/object-storage-operator/compare/v0.5.5...v0.6.0
 [0.5.5]: https://github.com/giantswarm/object-storage-operator/compare/v0.5.4...v0.5.5
 [0.5.4]: https://github.com/giantswarm/object-storage-operator/compare/v0.5.3...v0.5.4
