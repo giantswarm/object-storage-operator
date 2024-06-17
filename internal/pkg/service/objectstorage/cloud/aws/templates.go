@@ -37,11 +37,11 @@ const rolePolicy = `{
 			],
 			"Resource": [
 				{{ range .ExtraBucketNames }}
-				"arn:{{ .AWSDomain }}:s3:::{{ . }}",
-				"arn:{{ .AWSDomain }}:s3:::{{ . }}/*",
+				"arn:{{ $.AWSDomain }}:s3:::{{ . }}",
+				"arn:{{ $.AWSDomain }}:s3:::{{ . }}/*",
 				{{ end }}
-				"arn:{{ .AWSDomain }}:s3:::{{ .BucketName }}",
-				"arn:{{ .AWSDomain }}:s3:::{{ .BucketName }}/*"
+				"arn:{{ $.AWSDomain }}:s3:::{{ $.BucketName }}",
+				"arn:{{ $.AWSDomain }}:s3:::{{ $.BucketName }}/*"
 			]
 		},
 		{
@@ -70,12 +70,12 @@ const trustIdentityPolicy = `{
 		{
 			"Effect": "Allow",
 			"Principal": {
-				"Federated": "arn:{{ .AWSDomain }}:iam::{{ .AccountId }}:oidc-provider/{{ .CloudFrontDomain }}"
+				"Federated": "arn:{{ $.AWSDomain }}:iam::{{ $.AccountId }}:oidc-provider/{{ $.CloudFrontDomain }}"
 			},
 			"Action": "sts:AssumeRoleWithWebIdentity",
 			"Condition": {
 				"StringEquals": {
-					"{{ .CloudFrontDomain }}:sub": "system:serviceaccount:{{ .ServiceAccountNamespace }}:{{ .ServiceAccountName }}"
+					"{{ $.CloudFrontDomain }}:sub": "system:serviceaccount:{{ $.ServiceAccountNamespace }}:{{ $.ServiceAccountName }}"
 				}
 			}
 		}
@@ -96,8 +96,8 @@ const bucketPolicy = `{
 			"Principal": "*",
 			"Action": "s3:*",
 			"Resource": [
-				"arn:{{ .AWSDomain }}:s3:::{{ .BucketName }}",
-				"arn:{{ .AWSDomain }}:s3:::{{ .BucketName }}/*"
+				"arn:{{ $.AWSDomain }}:s3:::{{ $.BucketName }}",
+				"arn:{{ $.AWSDomain }}:s3:::{{ $.BucketName }}/*"
 			],
 			"Condition": {
 				"Bool": {
