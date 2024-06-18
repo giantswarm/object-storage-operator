@@ -168,7 +168,7 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 		nil,
 	)
 	if err != nil {
-		return fmt.Errorf("Impossible to retrieve Access Keys from Storage Account %s", storageAccountName)
+		return fmt.Errorf("unable to retrieve access keys from storage account %s", storageAccountName)
 	}
 	// Then, we retrieve the Access Key for 'key1'
 	foundKey1 := false
@@ -178,7 +178,7 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 			// Finally, we create the Secret into the bucket namespace
 			secret := &v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      storageAccountName,
+					Name:      bucket.Spec.Name,
 					Namespace: bucket.Namespace,
 					Labels: map[string]string{
 						"giantswarm.io/managed-by": "object-storage-operator",
@@ -193,12 +193,12 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 			if err != nil {
 				return err
 			}
-			s.logger.Info(fmt.Sprintf("Secret %s created", storageAccountName))
+			s.logger.Info(fmt.Sprintf("created secret %s", bucket.Spec.Name))
 			break
 		}
 	}
 	if !foundKey1 {
-		return fmt.Errorf("Impossible to retrieve Access Keys 'key1' from Storage Account %s", storageAccountName)
+		return fmt.Errorf("unable to retrieve access keys 'key1' from storage account %s", storageAccountName)
 	}
 
 	return nil
@@ -227,20 +227,20 @@ func (s AzureObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1a
 	err = s.client.Get(
 		ctx,
 		types.NamespacedName{
+			Name:      bucket.Spec.Name,
 			Namespace: bucket.Namespace,
-			Name:      storageAccountName,
 		},
 		&secret)
 	if err != nil {
-		s.logger.Error(err, fmt.Sprintf("Impossible to retrieve Secret %s", storageAccountName))
+		s.logger.Error(err, fmt.Sprintf("unable to retrieve secret %s", bucket.Spec.Name))
 		return err
 	}
 	err = s.client.Delete(ctx, &secret)
 	if err != nil {
-		s.logger.Error(err, fmt.Sprintf("Impossible to delete Secret %s", storageAccountName))
+		s.logger.Error(err, fmt.Sprintf("unable to delete secret %s", bucket.Spec.Name))
 		return err
 	}
-	s.logger.Info(fmt.Sprintf("Secret %s deleted", storageAccountName))
+	s.logger.Info(fmt.Sprintf("deleted secret %s", bucket.Spec.Name))
 
 	return nil
 }
