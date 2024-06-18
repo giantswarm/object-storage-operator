@@ -7,11 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Change azure storage account secret name by using the bucket name instead of the storage account name to not be bothered by azure storage account name limitations (up to 24 characters) which truncates secret name for long bucket names like `giantswarm-glippy-mimir-ruler` which becomes `giantswarmglippymimirrul`. As this rule is unpredictable (depends on the installation name), it is better to fix the name of the secret.
+
 ## [0.6.1] - 2024-06-17
 
 ### Fixed
 
-- Fix object-storage-operator templating.
+- Fix object-storage-operator aws templating by using the root scope when possible.
 
 ## [0.6.0] - 2024-06-17
 
