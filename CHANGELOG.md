@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2024-06-18
+
 ### Changed
 
 - Change azure storage account secret name by using the bucket name instead of the storage account name to not be bothered by azure storage account name limitations (up to 24 characters) which truncates secret name for long bucket names like `giantswarm-glippy-mimir-ruler` which becomes `giantswarmglippymimirrul`. As this rule is unpredictable (depends on the installation name), it is better to fix the name of the secret.
@@ -113,7 +115,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Implement creation of S3 buckets on CAPA management clusters.
 
-[Unreleased]: https://github.com/giantswarm/object-storage-operator/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/giantswarm/object-storage-operator/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/giantswarm/object-storage-operator/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/giantswarm/object-storage-operator/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/giantswarm/object-storage-operator/compare/v0.5.5...v0.6.0
 [0.5.5]: https://github.com/giantswarm/object-storage-operator/compare/v0.5.4...v0.5.5
