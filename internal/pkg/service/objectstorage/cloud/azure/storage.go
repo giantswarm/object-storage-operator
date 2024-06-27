@@ -215,7 +215,6 @@ func (s AzureObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1a
 	if err != nil {
 		return err
 	}
-	// If Storage Account does not exists, we need to create it first
 	if !existsStorageAccount {
 		return nil
 	}
@@ -226,11 +225,14 @@ func (s AzureObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1a
 	if err != nil {
 		return err
 	}
-
+	// debug
+	s.logger.Info(fmt.Sprintf("containerResponse: %+v", containerResponse))
+	s.logger.Info(fmt.Sprintf("containerResponse metadata: %+v", containerResponse.ContainerProperties.Metadata))
 	// Ensure that the response is correctly configured to avoid panics
 	if containerResponse.ContainerProperties == nil ||
 		containerResponse.ContainerProperties.Metadata == nil ||
 		containerResponse.ContainerProperties.Metadata["ItemCount"] == nil {
+
 		return fmt.Errorf("ItemCount metadata not found for storage container %s", bucket.Spec.Name)
 	}
 
