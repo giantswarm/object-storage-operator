@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
@@ -209,18 +210,51 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 // We want to prevent the Storage Account from being used by anyone
 func (s AzureObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	storageAccountName := s.getStorageAccountName(bucket.Spec.Name)
-	// We delete the Storage Account, which delete the Storage Container
-	_, err := s.storageAccountClient.Delete(
+	// Check if Storage Account exists on Azure
+	existsStorageAccount, err := s.existsStorageAccount(ctx, storageAccountName)
+	if err != nil {
+		return err
+	}
+	// If Storage Account does not exists, we need to create it first
+	if !existsStorageAccount {
+		return nil
+	}
+
+	// Check if the Storage Container is empty before proceeding to delete it
+	containerResponse, err := s.blobContainerClient.Get(ctx, s.cluster.GetResourceGroup(), storageAccountName,
+		bucket.Spec.Name, &armstorage.BlobContainersClientGetOptions{})
+	if err != nil {
+		return err
+	}
+
+	// Ensure that the response is correctly configured to avoid panics
+	if containerResponse.ContainerProperties == nil ||
+		containerResponse.ContainerProperties.Metadata == nil ||
+		containerResponse.ContainerProperties.Metadata["ItemCount"] == nil {
+		return fmt.Errorf("ItemCount metadata not found for storage container %s", bucket.Spec.Name)
+	}
+
+	// Get the number of items in the container
+	itemCount, err := strconv.Atoi(*containerResponse.ContainerProperties.Metadata["ItemCount"])
+	if err != nil {
+		return fmt.Errorf("conversion failed for storage container %s", bucket.Spec.Name)
+	}
+	if itemCount > 0 {
+		return fmt.Errorf("storage container %s is not empty", bucket.Spec.Name)
+	}
+
+	// We delete the Storage Account, which delete the Storage Container.
+	_, err = s.storageAccountClient.Delete(
 		ctx,
 		s.cluster.GetResourceGroup(),
 		storageAccountName,
 		nil,
 	)
 	if err != nil {
-		s.logger.Error(err, fmt.Sprintf("Error deleting Storage Account %s and Storage Container %s", storageAccountName, bucket.Spec.Name))
+		s.logger.Error(err, fmt.Sprintf("error deleting storage account %s and storage container %s", storageAccountName, bucket.Spec.Name))
 		return err
 	}
-	s.logger.Info(fmt.Sprintf("Storage Account %s and Storage Container %s deleted", storageAccountName, bucket.Spec.Name))
+	s.logger.Info(fmt.Sprintf("storage account %s and storage container %s deleted", storageAccountName, bucket.Spec.Name))
 
 	// We delete the Azure Credentials secret
 	var secret = v1.Secret{}
