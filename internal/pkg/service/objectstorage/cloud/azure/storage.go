@@ -2,17 +2,19 @@ package azure
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/aquilax/truncate"
 	"github.com/go-logr/logr"
 	sanitize "github.com/mrz1836/go-sanitize"
+	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -35,15 +37,46 @@ type AzureObjectStorageAdapter struct {
 	listStorageAccountName   []string
 }
 
-func NewAzureStorageService(storageAccountClient *armstorage.AccountsClient, blobContainerClient *armstorage.BlobContainersClient, managementPoliciesClient *armstorage.ManagementPoliciesClient, logger logr.Logger, cluster AzureCluster, client client.Client) AzureObjectStorageAdapter {
-	return AzureObjectStorageAdapter{
-		storageAccountClient:     storageAccountClient,
-		blobContainerClient:      blobContainerClient,
-		managementPoliciesClient: managementPoliciesClient,
+func NewAzureStorageService(logger logr.Logger, cluster AzureCluster, client client.Client) (*AzureObjectStorageAdapter, error) {
+	azureCredentials, ok := cluster.GetCredentials().(AzureCredentials)
+	if !ok {
+		return nil, errors.New("could not cast cluster credentials into azure cluster credentials")
+	}
+	credentials, err := getAzureCredentials(azureCredentials)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	var storageClientFactory *armstorage.ClientFactory
+	storageClientFactory, err = armstorage.NewClientFactory(azureCredentials.SubscriptionID, credentials, nil)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return &AzureObjectStorageAdapter{
+		storageAccountClient:     storageClientFactory.NewAccountsClient(),
+		blobContainerClient:      storageClientFactory.NewBlobContainersClient(),
+		managementPoliciesClient: storageClientFactory.NewManagementPoliciesClient(),
 		logger:                   logger,
 		cluster:                  cluster,
 		client:                   client,
 		listStorageAccountName:   []string{},
+	}, nil
+}
+
+func getAzureCredentials(credentials AzureCredentials) (azcore.TokenCredential, error) {
+	switch credentials.TypeIdentity {
+	case "UserAssignedMSI":
+		return azidentity.NewManagedIdentityCredential(&azidentity.ManagedIdentityCredentialOptions{
+			ID: azidentity.ClientID(credentials.ClientID),
+		})
+	case "ManualServicePrincipal":
+		return azidentity.NewClientSecretCredential(
+			credentials.TenantID,
+			credentials.ClientID,
+			string(credentials.SecretRef.Data[ClientSecretKeyName]),
+			nil)
+	default:
+		return nil, errors.New(fmt.Sprintf("Unknown typeIdentity %s", credentials.TypeIdentity))
 	}
 }
 
@@ -157,7 +190,7 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 	if err != nil {
 		return err
 	}
-	s.logger.Info(fmt.Sprintf("Storage Container %s created", bucket.Spec.Name))
+	s.logger.Info(fmt.Sprintf("storage container %s created", bucket.Spec.Name))
 
 	// Create a K8S Secret to store Storage Account Access Key
 	// First, we retrieve Storage Account Access Key on Azure
@@ -204,23 +237,62 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 	return nil
 }
 
+func (s AzureObjectStorageAdapter) createBlobClient(storageAccountName string) (*azblob.Client, error) {
+	azureCredentials, ok := s.cluster.GetCredentials().(AzureCredentials)
+	if !ok {
+		return nil, errors.New("could not cast cluster credentials into azure cluster credentials")
+	}
+	credentials, err := getAzureCredentials(azureCredentials)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	url := fmt.Sprintf("https://%s.blob.core.windows.net/", storageAccountName)
+	return azblob.NewClient(url, credentials, nil)
+}
+
 // DeleteBucket deletes the Storage Account (Storage Container will be deleted by cascade)
 // Here, we decided to have a Storage Account dedicated to a Storage Container (relation 1 - 1)
 // We want to prevent the Storage Account from being used by anyone
 func (s AzureObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	storageAccountName := s.getStorageAccountName(bucket.Spec.Name)
-	// We delete the Storage Account, which delete the Storage Container
-	_, err := s.storageAccountClient.Delete(
+	// Check if Storage Account exists on Azure
+	existsStorageAccount, err := s.existsStorageAccount(ctx, storageAccountName)
+	if err != nil {
+		return err
+	}
+	if !existsStorageAccount {
+		return nil
+	}
+
+	// Check if the Storage Container is empty before proceeding to delete it
+	blobClient, err := s.createBlobClient(storageAccountName)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	// blob listings are returned across multiple pages
+	pager := blobClient.NewListBlobsFlatPager(bucket.Spec.Name, nil)
+	if pager.More() {
+		resp, err := pager.NextPage(ctx)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		if resp.Segment.BlobItems != nil && len(resp.Segment.BlobItems) > 0 {
+			return fmt.Errorf("storage container %s is not empty", bucket.Spec.Name)
+		}
+	}
+
+	// We delete the Storage Account, which delete the Storage Container.
+	_, err = s.storageAccountClient.Delete(
 		ctx,
 		s.cluster.GetResourceGroup(),
 		storageAccountName,
 		nil,
 	)
 	if err != nil {
-		s.logger.Error(err, fmt.Sprintf("Error deleting Storage Account %s and Storage Container %s", storageAccountName, bucket.Spec.Name))
+		s.logger.Error(err, fmt.Sprintf("error deleting storage account %s and storage container %s", storageAccountName, bucket.Spec.Name))
 		return err
 	}
-	s.logger.Info(fmt.Sprintf("Storage Account %s and Storage Container %s deleted", storageAccountName, bucket.Spec.Name))
+	s.logger.Info(fmt.Sprintf("storage account %s and storage container %s deleted", storageAccountName, bucket.Spec.Name))
 
 	// We delete the Azure Credentials secret
 	var secret = v1.Secret{}
