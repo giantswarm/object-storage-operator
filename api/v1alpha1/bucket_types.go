@@ -80,6 +80,10 @@ type BucketStatus struct {
 	// BucketID is the unique id of the bucket.
 	// +optional
 	BucketID string `json:"bucketID,omitempty"`
+
+	// Bucket azure role assignment id.
+	// +optional
+	BucketAzureRoleAssignmentID string `json:"bucketAzureRoleAssignmentID,omitempty"`
 }
 
 //+kubebuilder:object:root=true

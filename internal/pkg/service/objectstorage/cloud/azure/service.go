@@ -15,14 +15,19 @@ type AzureObjectStorageService struct {
 }
 
 func (s AzureObjectStorageService) NewAccessRoleService(ctx context.Context, logger logr.Logger, cluster cluster.Cluster) (objectstorage.AccessRoleService, error) {
-	return NewAzureAccessService(), nil
-}
-
-func (s AzureObjectStorageService) NewObjectStorageService(ctx context.Context, logger logr.Logger, cluster cluster.Cluster, client client.Client) (objectstorage.ObjectStorageService, error) {
-	azurecluster, ok := cluster.(AzureCluster)
+	azureCluster, ok := cluster.(AzureCluster)
 	if !ok {
 		return nil, errors.New("Impossible to cast cluster into Azure cluster")
 	}
 
-	return NewAzureStorageService(logger, azurecluster, client)
+	return NewAzureAccessService(logger, azureCluster)
+}
+
+func (s AzureObjectStorageService) NewObjectStorageService(ctx context.Context, logger logr.Logger, cluster cluster.Cluster, client client.Client) (objectstorage.ObjectStorageService, error) {
+	azureCluster, ok := cluster.(AzureCluster)
+	if !ok {
+		return nil, errors.New("Impossible to cast cluster into Azure cluster")
+	}
+
+	return NewAzureStorageService(logger, azureCluster, client)
 }

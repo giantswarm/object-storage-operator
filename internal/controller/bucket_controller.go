@@ -122,14 +122,10 @@ func (r BucketReconciler) reconcileNormal(ctx context.Context, objectStorageServ
 	}
 
 	originalBucket = bucket.DeepCopy()
-	bucket.Status = v1alpha1.BucketStatus{
-		BucketID:    bucket.Spec.Name,
-		BucketReady: true,
-	}
+	bucket.Status = *originalBucket.Status.DeepCopy()
+	bucket.Status.BucketID = bucket.Spec.Name
+	bucket.Status.BucketReady = true
 
-	if err = r.Client.Status().Patch(ctx, bucket, client.MergeFrom(originalBucket)); err != nil {
-		return ctrl.Result{}, errors.WithStack(err)
-	}
 	logger.Info("Bucket ready")
 
 	if bucket.Spec.AccessRole != nil && bucket.Spec.AccessRole.RoleName != "" {
@@ -140,12 +136,29 @@ func (r BucketReconciler) reconcileNormal(ctx context.Context, objectStorageServ
 		}
 		logger.Info("Bucket access role created")
 	}
+
+	// We update the bucket at the end
+	if err = r.Client.Status().Patch(ctx, bucket, client.MergeFrom(originalBucket)); err != nil {
+		return ctrl.Result{}, errors.WithStack(err)
+	}
 	return ctrl.Result{}, nil
 }
 
 // reconcileDelete deletes the bucket.
 func (r BucketReconciler) reconcileDelete(ctx context.Context, objectStorageService objectstorage.ObjectStorageService, accessRoleService objectstorage.AccessRoleService, bucket *v1alpha1.Bucket) error {
 	logger := log.FromContext(ctx)
+
+	// TODO(quentin) Remove this, this is only to create the role for glippy
+	logger.Info("Creating bucket access role")
+	originalBucket := bucket.DeepCopy()
+	err := accessRoleService.ConfigureRole(ctx, bucket)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	if err = r.Client.Status().Patch(ctx, bucket, client.MergeFrom(originalBucket)); err != nil {
+		return errors.WithStack(err)
+	}
+	logger.Info("Bucket access role created")
 
 	logger.Info("Checking if bucket exists")
 	exists, err := objectStorageService.ExistsBucket(ctx, bucket)
@@ -169,7 +182,7 @@ func (r BucketReconciler) reconcileDelete(ctx context.Context, objectStorageServ
 		logger.Info("Bucket access role deleted")
 	}
 
-	originalBucket := bucket.DeepCopy()
+	originalBucket = bucket.DeepCopy()
 	// Bucket is deleted so remove the finalizer.
 	controllerutil.RemoveFinalizer(bucket, v1alpha1.BucketFinalizer)
 	return r.Client.Patch(ctx, bucket, client.MergeFrom(originalBucket))

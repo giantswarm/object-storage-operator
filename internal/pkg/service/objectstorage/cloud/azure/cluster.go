@@ -2,7 +2,10 @@ package azure
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -170,6 +173,7 @@ type AzureCredentials struct {
 	SubscriptionID string
 	TypeIdentity   string
 	ClientID       string
+	ResourceID     string
 	TenantID       string
 	SecretRef      corev1.Secret
 }
@@ -200,4 +204,25 @@ func (c AzureCluster) GetCredentials() cluster.Credentials {
 
 func (c AzureCluster) GetResourceGroup() string {
 	return c.Credentials.ResourceGroup
+}
+
+func (c AzureCluster) GetSubscriptionID() string {
+	return c.Credentials.SubscriptionID
+}
+
+func getAzureTokenCredentials(credentials AzureCredentials) (azcore.TokenCredential, error) {
+	switch credentials.TypeIdentity {
+	case "UserAssignedMSI":
+		return azidentity.NewManagedIdentityCredential(&azidentity.ManagedIdentityCredentialOptions{
+			ID: azidentity.ClientID(credentials.ClientID),
+		})
+	case "ManualServicePrincipal":
+		return azidentity.NewClientSecretCredential(
+			credentials.TenantID,
+			credentials.ClientID,
+			string(credentials.SecretRef.Data[ClientSecretKeyName]),
+			nil)
+	default:
+		return nil, errors.New(fmt.Sprintf("Unknown typeIdentity %s", credentials.TypeIdentity))
+	}
 }
