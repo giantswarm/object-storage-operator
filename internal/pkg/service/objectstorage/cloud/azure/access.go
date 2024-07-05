@@ -45,7 +45,7 @@ func NewAzureAccessService(logger logr.Logger, cluster AzureCluster) (*AzureAcce
 		return nil, errors.WithStack(err)
 	}
 
-	graphClient, err := msgraphsdk.NewGraphServiceClientWithCredentials(credentials, []string{"Application.Read.All"})
+	graphClient, err := msgraphsdk.NewGraphServiceClientWithCredentials(credentials, []string{"User.Read"})
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
