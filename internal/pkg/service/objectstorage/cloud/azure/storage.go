@@ -9,7 +9,6 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
-	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armlocks"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage"
 	"github.com/aquilax/truncate"
 	"github.com/go-logr/logr"
@@ -31,23 +30,18 @@ type AzureObjectStorageAdapter struct {
 	blobServicesClient       *armstorage.BlobServicesClient
 	blobContainerClient      *armstorage.BlobContainersClient
 	managementPoliciesClient *armstorage.ManagementPoliciesClient
-	locksClient              *armlocks.ManagementLocksClient
 	logger                   logr.Logger
 	cluster                  AzureCluster
 	client                   client.Client
 	listStorageAccountName   []string
 }
 
-func NewAzureStorageService(
-	storageClientFactory *armstorage.ClientFactory, lockClientFactory *armlocks.ClientFactory,
-	logger logr.Logger, cluster AzureCluster, client client.Client) AzureObjectStorageAdapter {
-
+func NewAzureStorageService(storageClientFactory *armstorage.ClientFactory, logger logr.Logger, cluster AzureCluster, client client.Client) AzureObjectStorageAdapter {
 	return AzureObjectStorageAdapter{
 		storageAccountClient:     storageClientFactory.NewAccountsClient(),
 		blobContainerClient:      storageClientFactory.NewBlobContainersClient(),
 		blobServicesClient:       storageClientFactory.NewBlobServicesClient(),
 		managementPoliciesClient: storageClientFactory.NewManagementPoliciesClient(),
-		locksClient:              lockClientFactory.NewManagementLocksClient(),
 		logger:                   logger,
 		cluster:                  cluster,
 		client:                   client,
@@ -265,32 +259,8 @@ func (s AzureObjectStorageAdapter) ConfigureBucket(ctx context.Context, bucket *
 	}
 	if !existsStorageAccount {
 		// If Storage Account does not exists, we error out
-		return fmt.Errorf("Storage Account %s does not exists", storageAccountName)
+		return fmt.Errorf("storage account %s does not exists", storageAccountName)
 	}
-
-	// Lock storate account to avoid accidental deletion.
-	s.locksClient.CreateOrUpdateByScope(
-		ctx,
-		fmt.Sprintf(
-			"/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Storage/storageAccounts/%s",
-			s.cluster.GetSubscriptionID(),
-			s.cluster.GetResourceGroup(),
-			storageAccountName,
-		),
-		storageAccountName,
-		armlocks.ManagementLockObject{
-			Properties: &armlocks.ManagementLockProperties{
-				Level: to.Ptr(armlocks.LockLevelCanNotDelete),
-				Notes: to.Ptr("This lock is created by the object-storage-operator"),
-				Owners: []*armlocks.ManagementLockOwner{
-					&armlocks.ManagementLockOwner{
-						ApplicationID: to.Ptr("object-storage-operator"),
-					},
-				},
-			},
-		},
-		nil,
-	)
 
 	// We configure soft delete on the storage account blob service
 	// Enable soft-delete for containers (so we can restore them if they are deleted up to 7 days)
@@ -310,6 +280,7 @@ func (s AzureObjectStorageAdapter) ConfigureBucket(ctx context.Context, bucket *
 	return err
 }
 
+// enableSoftDelete enables soft delete on the Storage Account
 func (s AzureObjectStorageAdapter) enableSoftDelete(ctx context.Context, storageAccountName string) error {
 	retentionInDays := int32(7)
 	_, err := s.blobServicesClient.SetServiceProperties(
@@ -355,7 +326,7 @@ func (s AzureObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket
 									Actions: &armstorage.ManagementPolicyAction{
 										BaseBlob: &armstorage.ManagementPolicyBaseBlob{
 											Delete: &armstorage.DateAfterModification{
-												DaysAfterModificationGreaterThan: to.Ptr[float32](float32(bucket.Spec.ExpirationPolicy.Days)),
+												DaysAfterModificationGreaterThan: to.Ptr(float32(bucket.Spec.ExpirationPolicy.Days)),
 											},
 										},
 									},
@@ -373,7 +344,7 @@ func (s AzureObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket
 			nil,
 		)
 		if err != nil {
-			s.logger.Error(err, fmt.Sprintf("Error creating/updating Policy Rule for Storage Account %s", storageAccountName))
+			s.logger.Error(err, fmt.Sprintf("error creating/updating Policy Rule for Storage Account %s", storageAccountName))
 		}
 		return err
 	}

@@ -114,7 +114,6 @@ func (r BucketReconciler) reconcileNormal(ctx context.Context, objectStorageServ
 	}
 
 	logger.Info("Configuring bucket settings")
-	// If expiration is not set, we remove all lifecycle rules
 	err = objectStorageService.ConfigureBucket(ctx, bucket)
 	if err != nil {
 		logger.Error(err, "Bucket could not be configured")
@@ -146,6 +145,14 @@ func (r BucketReconciler) reconcileNormal(ctx context.Context, objectStorageServ
 // reconcileDelete deletes the bucket.
 func (r BucketReconciler) reconcileDelete(ctx context.Context, objectStorageService objectstorage.ObjectStorageService, accessRoleService objectstorage.AccessRoleService, bucket *v1alpha1.Bucket) error {
 	logger := log.FromContext(ctx)
+
+	// TODO(quentin) Remove this, this is needed now for the glippy tests.
+	logger.Info("Configuring bucket settings")
+	err := objectStorageService.ConfigureBucket(ctx, bucket)
+	if err != nil {
+		logger.Error(err, "Bucket could not be configured")
+		return errors.WithStack(err)
+	}
 
 	logger.Info("Checking if bucket exists")
 	exists, err := objectStorageService.ExistsBucket(ctx, bucket)
