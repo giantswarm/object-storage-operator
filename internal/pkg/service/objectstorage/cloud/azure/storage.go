@@ -140,7 +140,7 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 		if err != nil {
 			return err
 		}
-		s.logger.Info(fmt.Sprintf("Storage Account %s created", storageAccountName))
+		s.logger.Info("storage account %s created", storageAccountName)
 	}
 
 	// Create Storage Container
@@ -159,7 +159,7 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 	if err != nil {
 		return err
 	}
-	s.logger.Info(fmt.Sprintf("Storage Container %s created", bucket.Spec.Name))
+	s.logger.Info("storage container %s created", bucket.Spec.Name)
 
 	// Create a K8S Secret to store Storage Account Access Key
 	// First, we retrieve Storage Account Access Key on Azure
@@ -195,7 +195,7 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 			if err != nil {
 				return err
 			}
-			s.logger.Info(fmt.Sprintf("created secret %s", bucket.Spec.Name))
+			s.logger.Info("created secret %s", bucket.Spec.Name)
 			break
 		}
 	}
@@ -210,9 +210,48 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 // Here, we decided to have a Storage Account dedicated to a Storage Container (relation 1 - 1)
 // We want to prevent the Storage Account from being used by anyone
 func (s AzureObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
+	var err error
+
 	storageAccountName := s.getStorageAccountName(bucket.Spec.Name)
+	// Check if Storage Account exists on Azure
+	existsStorageAccount, err := s.existsStorageAccount(ctx, storageAccountName)
+	if err != nil {
+		return err
+	}
+	if !existsStorageAccount {
+		// If Storage Account does not exists, we error out
+		return fmt.Errorf("storage account %s does not exists", storageAccountName)
+	}
+
+	// Delete Storage Container
+	_, err = s.blobContainerClient.Delete(
+		ctx,
+		s.cluster.GetResourceGroup(),
+		storageAccountName,
+		bucket.Spec.Name,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+	s.logger.Info("storage container has been requested for %s deletion", bucket.Spec.Name)
+
+	// We check if the blob container has been deleted fully before proceeding (respecting the soft delete retention period)
+	_, err = s.blobContainerClient.Get(
+		ctx,
+		s.cluster.GetResourceGroup(),
+		storageAccountName,
+		bucket.Spec.Name,
+		nil,
+	)
+	if err != nil {
+		// If the container was not deleted, we return an error so the team is aware that the container is still there
+		return err
+	}
+	s.logger.Info("storage container %s deleted", bucket.Spec.Name)
+
 	// We delete the Storage Account, which delete the Storage Container
-	_, err := s.storageAccountClient.Delete(
+	_, err = s.storageAccountClient.Delete(
 		ctx,
 		s.cluster.GetResourceGroup(),
 		storageAccountName,
