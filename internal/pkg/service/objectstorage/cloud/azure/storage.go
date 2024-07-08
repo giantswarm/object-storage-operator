@@ -9,6 +9,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armlocks"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage"
 	"github.com/aquilax/truncate"
 	"github.com/go-logr/logr"
@@ -27,19 +28,26 @@ const (
 
 type AzureObjectStorageAdapter struct {
 	storageAccountClient     *armstorage.AccountsClient
+	blobServicesClient       *armstorage.BlobServicesClient
 	blobContainerClient      *armstorage.BlobContainersClient
 	managementPoliciesClient *armstorage.ManagementPoliciesClient
+	locksClient              *armlocks.ManagementLocksClient
 	logger                   logr.Logger
 	cluster                  AzureCluster
 	client                   client.Client
 	listStorageAccountName   []string
 }
 
-func NewAzureStorageService(storageAccountClient *armstorage.AccountsClient, blobContainerClient *armstorage.BlobContainersClient, managementPoliciesClient *armstorage.ManagementPoliciesClient, logger logr.Logger, cluster AzureCluster, client client.Client) AzureObjectStorageAdapter {
+func NewAzureStorageService(
+	storageClientFactory *armstorage.ClientFactory, lockClientFactory *armlocks.ClientFactory,
+	logger logr.Logger, cluster AzureCluster, client client.Client) AzureObjectStorageAdapter {
+
 	return AzureObjectStorageAdapter{
-		storageAccountClient:     storageAccountClient,
-		blobContainerClient:      blobContainerClient,
-		managementPoliciesClient: managementPoliciesClient,
+		storageAccountClient:     storageClientFactory.NewAccountsClient(),
+		blobContainerClient:      storageClientFactory.NewBlobContainersClient(),
+		blobServicesClient:       storageClientFactory.NewBlobServicesClient(),
+		managementPoliciesClient: storageClientFactory.NewManagementPoliciesClient(),
+		locksClient:              lockClientFactory.NewManagementLocksClient(),
 		logger:                   logger,
 		cluster:                  cluster,
 		client:                   client,
@@ -248,19 +256,87 @@ func (s AzureObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1a
 // ConfigureBucket set lifecycle rules (expiration on blob)
 func (s AzureObjectStorageAdapter) ConfigureBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	var err error
-	// If expiration is not set, we remove all lifecycle rules
-	err = s.setLifecycleRules(ctx, bucket)
+
+	storageAccountName := s.getStorageAccountName(bucket.Spec.Name)
+	// Check if Storage Account exists on Azure
+	existsStorageAccount, err := s.existsStorageAccount(ctx, storageAccountName)
+	if err != nil {
+		return err
+	}
+	if !existsStorageAccount {
+		// If Storage Account does not exists, we error out
+		return fmt.Errorf("Storage Account %s does not exists", storageAccountName)
+	}
+
+	// Lock storate account to avoid accidental deletion.
+	s.locksClient.CreateOrUpdateByScope(
+		ctx,
+		fmt.Sprintf(
+			"/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Storage/storageAccounts/%s",
+			s.cluster.GetSubscriptionID(),
+			s.cluster.GetResourceGroup(),
+			storageAccountName,
+		),
+		storageAccountName,
+		armlocks.ManagementLockObject{
+			Properties: &armlocks.ManagementLockProperties{
+				Level: to.Ptr(armlocks.LockLevelCanNotDelete),
+				Notes: to.Ptr("This lock is created by the object-storage-operator"),
+				Owners: []*armlocks.ManagementLockOwner{
+					&armlocks.ManagementLockOwner{
+						ApplicationID: to.Ptr("object-storage-operator"),
+					},
+				},
+			},
+		},
+		nil,
+	)
+
+	// We configure soft delete on the storage account blob service
+	// Enable soft-delete for containers (so we can restore them if they are deleted up to 7 days)
+	// Enable soft-delete for blobs (so we can restore them if they are deleted up to 7 days)
+	err = s.enableSoftDelete(ctx, storageAccountName)
 	if err != nil {
 		return err
 	}
 
-	err = s.setTags(ctx, bucket)
+	// If expiration is not set, we remove all lifecycle rules
+	err = s.setLifecycleRules(ctx, bucket, storageAccountName)
+	if err != nil {
+		return err
+	}
+
+	err = s.setTags(ctx, bucket, storageAccountName)
+	return err
+}
+
+func (s AzureObjectStorageAdapter) enableSoftDelete(ctx context.Context, storageAccountName string) error {
+	retentionInDays := int32(7)
+	_, err := s.blobServicesClient.SetServiceProperties(
+		ctx,
+		s.cluster.GetResourceGroup(),
+		storageAccountName,
+		armstorage.BlobServiceProperties{
+			BlobServiceProperties: &armstorage.BlobServicePropertiesProperties{
+
+				ContainerDeleteRetentionPolicy: &armstorage.DeleteRetentionPolicy{
+					Enabled: to.Ptr(true),
+					Days:    to.Ptr(retentionInDays),
+				},
+
+				DeleteRetentionPolicy: &armstorage.DeleteRetentionPolicy{
+					Enabled: to.Ptr(true),
+					Days:    to.Ptr(retentionInDays),
+				},
+			},
+		},
+		nil,
+	)
 	return err
 }
 
 // setLifecycleRules set a lifecycle rule on the Storage Account to delete Blobs older than X days
-func (s AzureObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket *v1alpha1.Bucket) error {
-	storageAccountName := s.getStorageAccountName(bucket.Spec.Name)
+func (s AzureObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket *v1alpha1.Bucket, storageAccountName string) error {
 	if bucket.Spec.ExpirationPolicy != nil {
 		_, err := s.managementPoliciesClient.CreateOrUpdate(
 			ctx,
@@ -327,8 +403,7 @@ func sanitizeTagKey(tagName string) string {
 }
 
 // setTags set cluster additionalTags and bucket tags into Storage Container Metadata
-func (s AzureObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1.Bucket) error {
-	storageAccountName := s.getStorageAccountName(bucket.Spec.Name)
+func (s AzureObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1.Bucket, storageAccountName string) error {
 	tags := map[string]*string{}
 	for _, t := range bucket.Spec.Tags {
 		// We use this to avoid pointer issues in range loops.

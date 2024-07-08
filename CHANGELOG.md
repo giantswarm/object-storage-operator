@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Lock azure storage account deletion using Azure locks.
+- Enable Azure storage container soft-delete on containers and blobs to be able to restore them up to 7 days.
+
 ## [0.7.0] - 2024-06-18
 
 ### Changed

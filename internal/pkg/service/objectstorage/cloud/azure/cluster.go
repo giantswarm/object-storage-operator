@@ -201,3 +201,7 @@ func (c AzureCluster) GetCredentials() cluster.Credentials {
 func (c AzureCluster) GetResourceGroup() string {
 	return c.Credentials.ResourceGroup
 }
+
+func (c AzureCluster) GetSubscriptionID() string {
+	return c.Credentials.SubscriptionID
+}
