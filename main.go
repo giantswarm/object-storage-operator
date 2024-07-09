@@ -105,6 +105,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Initialization of the custom gauge to count the number of reconcileDelete bucket events
+	flags.RegisterGauge()
+
 	var objectStorage objectstorage.ObjectStorageServiceFactory
 	var clusterGetter cluster.ClusterGetter
 	switch managementCluster.Provider {

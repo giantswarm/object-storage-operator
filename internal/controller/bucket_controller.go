@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -88,6 +89,9 @@ func (r BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 func (r BucketReconciler) reconcileNormal(ctx context.Context, objectStorageService objectstorage.ObjectStorageService, accessRoleService objectstorage.AccessRoleService, bucket *v1alpha1.Bucket) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
+	// Init the gauge for the number of reconcileDelete bucket events for that Bucket CR
+	flags.ReconcileDeleteGauge.With(prometheus.Labels{"bucket_name": bucket.Spec.Name}).Set(0)
+
 	originalBucket := bucket.DeepCopy()
 	// If the Bucket doesn't have our finalizer, add it.
 	if controllerutil.AddFinalizer(bucket, v1alpha1.BucketFinalizer) {
@@ -147,32 +151,38 @@ func (r BucketReconciler) reconcileNormal(ctx context.Context, objectStorageServ
 func (r BucketReconciler) reconcileDelete(ctx context.Context, objectStorageService objectstorage.ObjectStorageService, accessRoleService objectstorage.AccessRoleService, bucket *v1alpha1.Bucket) error {
 	logger := log.FromContext(ctx)
 
-	logger.Info("Checking if bucket exists")
-	exists, err := objectStorageService.ExistsBucket(ctx, bucket)
-	if err == nil && exists {
-		logger.Info("Bucket exists, deleting")
-		err = objectStorageService.DeleteBucket(ctx, bucket)
-		if err != nil {
-			logger.Error(err, "Bucket could not be deleted")
-			return errors.WithStack(err)
-		}
-	}
+	// Increase the gauge for the number of reconcileDelete bucket events for that Bucket CR
+	logger.Info("Increase the reconcileDelete gauge")
+	flags.ReconcileDeleteGauge.With(prometheus.Labels{"bucket_name": bucket.Spec.Name}).Add(1)
 
-	logger.Info("Bucket deleted")
+	return nil
 
-	if bucket.Spec.AccessRole != nil && bucket.Spec.AccessRole.RoleName != "" {
-		logger.Info("Deleting bucket access role")
-		err = accessRoleService.DeleteRole(ctx, bucket)
-		if err != nil {
-			return errors.WithStack(err)
-		}
-		logger.Info("Bucket access role deleted")
-	}
+	// logger.Info("Checking if bucket exists")
+	// exists, err := objectStorageService.ExistsBucket(ctx, bucket)
+	// if err == nil && exists {
+	// 	logger.Info("Bucket exists, deleting")
+	// 	err = objectStorageService.DeleteBucket(ctx, bucket)
+	// 	if err != nil {
+	// 		logger.Error(err, "Bucket could not be deleted")
+	// 		return errors.WithStack(err)
+	// 	}
+	// }
 
-	originalBucket := bucket.DeepCopy()
-	// Bucket is deleted so remove the finalizer.
-	controllerutil.RemoveFinalizer(bucket, v1alpha1.BucketFinalizer)
-	return r.Client.Patch(ctx, bucket, client.MergeFrom(originalBucket))
+	// logger.Info("Bucket deleted")
+
+	// if bucket.Spec.AccessRole != nil && bucket.Spec.AccessRole.RoleName != "" {
+	// 	logger.Info("Deleting bucket access role")
+	// 	err = accessRoleService.DeleteRole(ctx, bucket)
+	// 	if err != nil {
+	// 		return errors.WithStack(err)
+	// 	}
+	// 	logger.Info("Bucket access role deleted")
+	// }
+
+	// originalBucket := bucket.DeepCopy()
+	// // Bucket is deleted so remove the finalizer.
+	// controllerutil.RemoveFinalizer(bucket, v1alpha1.BucketFinalizer)
+	// return r.Client.Patch(ctx, bucket, client.MergeFrom(originalBucket))
 
 }
 

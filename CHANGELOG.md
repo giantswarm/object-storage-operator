@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add custom metrics counting the number of Bucket CR delete reconciliation.
+
 ## [0.7.0] - 2024-06-18
 
 ### Changed
