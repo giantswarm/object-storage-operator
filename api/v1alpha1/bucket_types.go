@@ -21,7 +21,9 @@ import (
 )
 
 const (
-	BucketFinalizer = "bucket.objectstorage.giantswarm.io"
+	BucketFinalizer     = "bucket.objectstorage.giantswarm.io"
+	ReclaimPolicyRetain = "Retain"
+	ReclaimPolicyDelete = "Delete"
 )
 
 // BucketSpec defines the desired state of Bucket
@@ -32,6 +34,10 @@ type BucketSpec struct {
 	// Expiration policy on the objects in the bucket.
 	// +optional
 	ExpirationPolicy *BucketExpirationPolicy `json:"expirationPolicy,omitempty"`
+
+	// Reclaim policy on the bucket.
+	// +optional
+	ReclaimPolicy string `json:"reclaimPolicy,omitempty"`
 
 	// Access role that can be assumed to access the bucket
 	AccessRole *BucketAccessRole `json:"accessRole,omitempty"`

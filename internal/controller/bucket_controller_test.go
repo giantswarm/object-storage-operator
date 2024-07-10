@@ -382,7 +382,8 @@ var _ = Describe("Bucket Reconciler", func() {
 							},
 						},
 						Spec: v1alpha1.BucketSpec{
-							Name: BucketName,
+							Name:          BucketName,
+							ReclaimPolicy: v1alpha1.ReclaimPolicyDelete,
 						},
 						Status: v1alpha1.BucketStatus{},
 					}
@@ -774,7 +775,8 @@ var _ = Describe("Bucket Reconciler", func() {
 							},
 						},
 						Spec: v1alpha1.BucketSpec{
-							Name: BucketName,
+							Name:          BucketName,
+							ReclaimPolicy: v1alpha1.ReclaimPolicyDelete,
 						},
 						Status: v1alpha1.BucketStatus{},
 					}

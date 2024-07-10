@@ -65,6 +65,36 @@ func (s S3ObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1alph
 }
 
 func (s S3ObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
+	// First we need to empty the bucket
+	in := &s3.ListObjectsV2Input{Bucket: &bucket.Spec.Name}
+	for {
+		// We retrieve a batch of objects
+		out, err := s.s3Client.ListObjectsV2(ctx, in)
+		if err != nil {
+			return err
+		}
+
+		// We delete each object
+		for _, item := range out.Contents {
+			_, err = s.s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
+				Bucket: &bucket.Spec.Name,
+				Key:    item.Key,
+			})
+			if err != nil {
+				return err
+			}
+		}
+
+		// If there are more objects, we need to continue
+		if *out.IsTruncated {
+			in.ContinuationToken = out.ContinuationToken
+		} else {
+			// No more objects in the bucket, we go out of the loop
+			break
+		}
+	}
+
+	// Then we can delete the bucket
 	_, err := s.s3Client.DeleteBucket(ctx, &s3.DeleteBucketInput{
 		Bucket: aws.String(bucket.Spec.Name),
 	})

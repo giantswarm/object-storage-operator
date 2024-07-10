@@ -183,6 +183,9 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 					Labels: map[string]string{
 						"giantswarm.io/managed-by": "object-storage-operator",
 					},
+					Finalizers: []string{
+						v1alpha1.BucketFinalizer,
+					},
 				},
 				Data: map[string][]byte{
 					"accountName": []byte(storageAccountName),
