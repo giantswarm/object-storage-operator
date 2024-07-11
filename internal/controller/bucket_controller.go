@@ -147,20 +147,25 @@ func (r BucketReconciler) reconcileNormal(ctx context.Context, objectStorageServ
 func (r BucketReconciler) reconcileDelete(ctx context.Context, objectStorageService objectstorage.ObjectStorageService, accessRoleService objectstorage.AccessRoleService, bucket *v1alpha1.Bucket) error {
 	logger := log.FromContext(ctx)
 
-	if bucket.Spec.ReclaimPolicy == v1alpha1.ReclaimPolicyDelete {
+	logger.Info("Checking if bucket exists")
+	exists, err := objectStorageService.ExistsBucket(ctx, bucket)
+	if err != nil {
+		return errors.WithStack(err)
+	} else if !exists {
+		logger.Info("Bucket does not exist")
+		return nil
+	}
+
+	switch bucket.Spec.ReclaimPolicy {
+	case v1alpha1.ReclaimPolicyDelete:
 		logger.Info("Reclaim policy is set to delete, deleting bucket")
 
-		logger.Info("Checking if bucket exists")
-		exists, err := objectStorageService.ExistsBucket(ctx, bucket)
-		if err == nil && exists {
-			logger.Info("Bucket exists, deleting")
-			err = objectStorageService.DeleteBucket(ctx, bucket)
-			if err != nil {
-				logger.Error(err, "Bucket could not be deleted")
-				return errors.WithStack(err)
-			}
+		logger.Info("Bucket exists, deleting")
+		err = objectStorageService.DeleteBucket(ctx, bucket)
+		if err != nil {
+			logger.Error(err, "Bucket could not be deleted")
+			return errors.WithStack(err)
 		}
-
 		logger.Info("Bucket deleted")
 
 		if bucket.Spec.AccessRole != nil && bucket.Spec.AccessRole.RoleName != "" {
@@ -171,15 +176,16 @@ func (r BucketReconciler) reconcileDelete(ctx context.Context, objectStorageServ
 			}
 			logger.Info("Bucket access role deleted")
 		}
-
-		originalBucket := bucket.DeepCopy()
-		// Bucket is deleted so remove the finalizer.
-		controllerutil.RemoveFinalizer(bucket, v1alpha1.BucketFinalizer)
-		return r.Client.Patch(ctx, bucket, client.MergeFrom(originalBucket))
-	} else {
-		logger.Info("Reclaim policy is set to retain (default policy), not deleting bucket")
-		return nil
+	case v1alpha1.ReclaimPolicyRetain:
+		logger.Info("Reclaim policy is set to retain, not deleting bucket")
+	default:
+		logger.Info("Reclaim policy is the default one (retain), not deleting bucket")
 	}
+
+	// Bucket is deleted so remove the finalizer.
+	originalBucket := bucket.DeepCopy()
+	controllerutil.RemoveFinalizer(bucket, v1alpha1.BucketFinalizer)
+	return r.Client.Patch(ctx, bucket, client.MergeFrom(originalBucket))
 }
 
 // SetupWithManager sets up the controller with the Manager.

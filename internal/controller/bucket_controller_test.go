@@ -369,7 +369,7 @@ var _ = Describe("Bucket Reconciler", func() {
 				})
 			})
 
-			When("the bucket is being deleted", func() {
+			When("the bucket is being deleted (ReclaimPolicy = Delete)", func() {
 				BeforeEach(func() {
 					// creates dummy bucket in deleting state
 					var gracePeriod int64 = 120
@@ -419,11 +419,11 @@ var _ = Describe("Bucket Reconciler", func() {
 						Expect(objectStorageService.DeleteBucketCallCount()).To(Equal(0))
 						var existingBucket v1alpha1.Bucket
 						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
-						Expect(existingBucket.Finalizers).ToNot(ContainElement(v1alpha1.BucketFinalizer))
+						Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
 					})
 				})
 
-				When("deleting a bucket that does not exists", func() {
+				When("deleting a bucket that does exists", func() {
 					BeforeEach(func() {
 						objectStorageService.ExistsBucketReturns(true, nil)
 					})
@@ -431,6 +431,57 @@ var _ = Describe("Bucket Reconciler", func() {
 						Expect(reconcileErr).ToNot(HaveOccurred())
 						Expect(objectStorageService.ExistsBucketCallCount()).To(Equal(1))
 						Expect(objectStorageService.DeleteBucketCallCount()).To(Equal(1))
+						var existingBucket v1alpha1.Bucket
+						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
+						Expect(existingBucket.Finalizers).ToNot(ContainElement(v1alpha1.BucketFinalizer))
+					})
+				})
+			})
+			When("the bucket is being deleted (ReclaimPolicy = Retain)", func() {
+				BeforeEach(func() {
+					// creates dummy bucket in deleting state
+					var gracePeriod int64 = 120
+					bucket := v1alpha1.Bucket{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      BucketName,
+							Namespace: BucketNamespace,
+							Finalizers: []string{
+								v1alpha1.BucketFinalizer,
+							},
+						},
+						Spec: v1alpha1.BucketSpec{
+							Name:          BucketName,
+							ReclaimPolicy: v1alpha1.ReclaimPolicyRetain,
+						},
+						Status: v1alpha1.BucketStatus{},
+					}
+					_ = fakeClient.Create(ctx, &bucket)
+					_ = fakeClient.Delete(ctx, &bucket, &client.DeleteOptions{GracePeriodSeconds: &gracePeriod})
+				})
+
+				When("deleting a bucket that does not exists", func() {
+					BeforeEach(func() {
+						objectStorageService.ExistsBucketReturns(false, nil)
+					})
+
+					It("was free of its finalizer", func() {
+						Expect(reconcileErr).ToNot(HaveOccurred())
+						Expect(objectStorageService.ExistsBucketCallCount()).To(Equal(1))
+						Expect(objectStorageService.DeleteBucketCallCount()).To(Equal(0))
+						var existingBucket v1alpha1.Bucket
+						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
+						Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
+					})
+				})
+
+				When("deleting a bucket that does exists", func() {
+					BeforeEach(func() {
+						objectStorageService.ExistsBucketReturns(true, nil)
+					})
+					It("was deleted", func() {
+						Expect(reconcileErr).ToNot(HaveOccurred())
+						Expect(objectStorageService.ExistsBucketCallCount()).To(Equal(1))
+						Expect(objectStorageService.DeleteBucketCallCount()).To(Equal(0))
 						var existingBucket v1alpha1.Bucket
 						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 						Expect(existingBucket.Finalizers).ToNot(ContainElement(v1alpha1.BucketFinalizer))
@@ -813,11 +864,11 @@ var _ = Describe("Bucket Reconciler", func() {
 						Expect(objectStorageService.DeleteBucketCallCount()).To(Equal(0))
 						var existingBucket v1alpha1.Bucket
 						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
-						Expect(existingBucket.Finalizers).ToNot(ContainElement(v1alpha1.BucketFinalizer))
+						Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
 					})
 				})
 
-				When("deleting a bucket that does not exists", func() {
+				When("deleting a bucket that does exists", func() {
 					BeforeEach(func() {
 						objectStorageService.ExistsBucketReturns(true, nil)
 					})
