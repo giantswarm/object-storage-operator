@@ -149,7 +149,7 @@ func (r BucketReconciler) reconcileDelete(ctx context.Context, objectStorageServ
 
 	logger.Info("Checking if bucket exists")
 	exists, err := objectStorageService.ExistsBucket(ctx, bucket)
-	if err != nil && exists {
+	if err == nil && exists {
 		switch bucket.Spec.ReclaimPolicy {
 		case v1alpha1.ReclaimPolicyDelete:
 			logger.Info("Reclaim policy is set to delete, deleting bucket")

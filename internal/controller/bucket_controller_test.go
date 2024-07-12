@@ -419,7 +419,7 @@ var _ = Describe("Bucket Reconciler", func() {
 						Expect(objectStorageService.DeleteBucketCallCount()).To(Equal(0))
 						var existingBucket v1alpha1.Bucket
 						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
-						Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
+						Expect(existingBucket.Finalizers).ToNot(ContainElement(v1alpha1.BucketFinalizer))
 					})
 				})
 
@@ -470,7 +470,7 @@ var _ = Describe("Bucket Reconciler", func() {
 						Expect(objectStorageService.DeleteBucketCallCount()).To(Equal(0))
 						var existingBucket v1alpha1.Bucket
 						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
-						Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
+						Expect(existingBucket.Finalizers).ToNot(ContainElement(v1alpha1.BucketFinalizer))
 					})
 				})
 
@@ -864,7 +864,7 @@ var _ = Describe("Bucket Reconciler", func() {
 						Expect(objectStorageService.DeleteBucketCallCount()).To(Equal(0))
 						var existingBucket v1alpha1.Bucket
 						_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
-						Expect(existingBucket.Finalizers).To(ContainElement(v1alpha1.BucketFinalizer))
+						Expect(existingBucket.Finalizers).ToNot(ContainElement(v1alpha1.BucketFinalizer))
 					})
 				})
 
