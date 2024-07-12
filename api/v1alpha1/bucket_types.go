@@ -21,9 +21,10 @@ import (
 )
 
 const (
-	BucketFinalizer     = "bucket.objectstorage.giantswarm.io"
-	ReclaimPolicyRetain = "Retain"
-	ReclaimPolicyDelete = "Delete"
+	BucketFinalizer      = "bucket.objectstorage.giantswarm.io"
+	AzureSecretFinalizer = "giantswarm.io/object-storage-operator"
+	ReclaimPolicyRetain  = "Retain"
+	ReclaimPolicyDelete  = "Delete"
 )
 
 // BucketSpec defines the desired state of Bucket

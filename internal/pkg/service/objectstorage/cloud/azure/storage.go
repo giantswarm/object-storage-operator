@@ -185,7 +185,7 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 						"giantswarm.io/managed-by": "object-storage-operator",
 					},
 					Finalizers: []string{
-						v1alpha1.BucketFinalizer,
+						v1alpha1.AzureSecretFinalizer,
 					},
 				},
 				Data: map[string][]byte{
@@ -241,7 +241,7 @@ func (s AzureObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1a
 	}
 	// We remove the finalizer to allow the secret to be deleted
 	originalSecret := secret.DeepCopy()
-	controllerutil.RemoveFinalizer(&secret, v1alpha1.BucketFinalizer)
+	controllerutil.RemoveFinalizer(&secret, v1alpha1.AzureSecretFinalizer)
 	err = s.client.Patch(ctx, &secret, client.MergeFrom(originalSecret))
 	if err != nil {
 		s.logger.Error(err, fmt.Sprintf("unable to remove the finalizer in the secret %s", bucket.Spec.Name))
