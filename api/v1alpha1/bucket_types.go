@@ -21,10 +21,11 @@ import (
 )
 
 const (
-	BucketFinalizer     = "bucket.objectstorage.giantswarm.io"
-	AzureSecFinalizer   = "giantswarm.io/object-storage-operator"
-	ReclaimPolicyRetain = "Retain"
-	ReclaimPolicyDelete = "Delete"
+	BucketFinalizer = "bucket.objectstorage.giantswarm.io"
+	// Secret finalizer need a "/" in the name https://github.com/kubernetes/kubernetes/blob/36981002246682ed7dc4de54ccc2a96c1a0cbbdb/pkg/apis/core/validation/validation.go#L5314-L5320
+	AzureSecretFinalizer = "giantswarm.io/secret.object-storage-operator" // #nosec G101
+	ReclaimPolicyRetain  = "Retain"
+	ReclaimPolicyDelete  = "Delete"
 )
 
 // BucketSpec defines the desired state of Bucket
