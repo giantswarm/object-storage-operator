@@ -172,17 +172,18 @@ func (r BucketReconciler) reconcileDelete(ctx context.Context, objectStorageServ
 			} else {
 				logger.Info("Bucket access role not found, skipping deletion")
 			}
+
+			// Remove the finalizer.
+			originalBucket := bucket.DeepCopy()
+			controllerutil.RemoveFinalizer(bucket, v1alpha1.BucketFinalizer)
+			return r.Client.Patch(ctx, bucket, client.MergeFrom(originalBucket))
 		case v1alpha1.ReclaimPolicyRetain:
 			logger.Info("Reclaim policy is set to retain, not deleting bucket")
 		default:
 			logger.Info("Reclaim policy is the default one (retain), not deleting bucket")
 		}
 	}
-
-	// Remove the finalizer.
-	originalBucket := bucket.DeepCopy()
-	controllerutil.RemoveFinalizer(bucket, v1alpha1.BucketFinalizer)
-	return r.Client.Patch(ctx, bucket, client.MergeFrom(originalBucket))
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
