@@ -66,31 +66,31 @@ func (s S3ObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1alph
 
 func (s S3ObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	// First we need to empty the bucket
-	in := &s3.ListObjectsV2Input{Bucket: &bucket.Spec.Name}
-	for {
-		// We retrieve a batch of objects
-		out, err := s.s3Client.ListObjectsV2(ctx, in)
+	paginator := s3.NewListObjectsV2Paginator(s.s3Client, &s3.ListObjectsV2Input{
+		Bucket: aws.String(bucket.Spec.Name),
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
 		if err != nil {
 			return err
 		}
 
-		// We delete each object
-		for _, item := range out.Contents {
-			_, err = s.s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
-				Bucket: &bucket.Spec.Name,
-				Key:    item.Key,
+		var objects []types.ObjectIdentifier
+		for _, object := range page.Contents {
+			objects = append(objects, types.ObjectIdentifier{
+				Key: object.Key,
 			})
-			if err != nil {
-				return err
-			}
 		}
 
-		// If there are more objects, we need to continue
-		if *out.IsTruncated {
-			in.ContinuationToken = out.ContinuationToken
-		} else {
-			// No more objects in the bucket, we go out of the loop
-			break
+		_, err = s.s3Client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
+			Bucket: aws.String(bucket.Spec.Name),
+			Delete: &types.Delete{
+				Objects: objects,
+			},
+		})
+		if err != nil {
+			return err
 		}
 	}
 
