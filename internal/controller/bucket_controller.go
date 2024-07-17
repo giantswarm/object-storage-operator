@@ -150,30 +150,40 @@ func (r BucketReconciler) reconcileDelete(ctx context.Context, objectStorageServ
 	logger.Info("Checking if bucket exists")
 	exists, err := objectStorageService.ExistsBucket(ctx, bucket)
 	if err == nil && exists {
-		logger.Info("Bucket exists, deleting")
-		err = objectStorageService.DeleteBucket(ctx, bucket)
-		if err != nil {
-			logger.Error(err, "Bucket could not be deleted")
-			return errors.WithStack(err)
+		switch bucket.Spec.ReclaimPolicy {
+		case v1alpha1.ReclaimPolicyDelete:
+			logger.Info("Reclaim policy is set to delete, deleting bucket")
+
+			logger.Info("Bucket exists, deleting")
+			err = objectStorageService.DeleteBucket(ctx, bucket)
+			if err != nil {
+				logger.Error(err, "Bucket could not be deleted")
+				return errors.WithStack(err)
+			}
+			logger.Info("Bucket deleted")
+
+			if bucket.Spec.AccessRole != nil && bucket.Spec.AccessRole.RoleName != "" {
+				logger.Info("Deleting bucket access role")
+				err = accessRoleService.DeleteRole(ctx, bucket)
+				if err != nil {
+					return errors.WithStack(err)
+				}
+				logger.Info("Bucket access role deleted")
+			} else {
+				logger.Info("Bucket access role not found, skipping deletion")
+			}
+
+			// Remove the finalizer.
+			originalBucket := bucket.DeepCopy()
+			controllerutil.RemoveFinalizer(bucket, v1alpha1.BucketFinalizer)
+			return r.Client.Patch(ctx, bucket, client.MergeFrom(originalBucket))
+		case v1alpha1.ReclaimPolicyRetain:
+			logger.Info("Reclaim policy is set to retain, not deleting bucket")
+		default:
+			logger.Info("Reclaim policy is the default one (retain), not deleting bucket")
 		}
 	}
-
-	logger.Info("Bucket deleted")
-
-	if bucket.Spec.AccessRole != nil && bucket.Spec.AccessRole.RoleName != "" {
-		logger.Info("Deleting bucket access role")
-		err = accessRoleService.DeleteRole(ctx, bucket)
-		if err != nil {
-			return errors.WithStack(err)
-		}
-		logger.Info("Bucket access role deleted")
-	}
-
-	originalBucket := bucket.DeepCopy()
-	// Bucket is deleted so remove the finalizer.
-	controllerutil.RemoveFinalizer(bucket, v1alpha1.BucketFinalizer)
-	return r.Client.Patch(ctx, bucket, client.MergeFrom(originalBucket))
-
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -17,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
 )
@@ -183,6 +184,9 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 					Labels: map[string]string{
 						"giantswarm.io/managed-by": "object-storage-operator",
 					},
+					Finalizers: []string{
+						v1alpha1.AzureSecretFinalizer,
+					},
 				},
 				Data: map[string][]byte{
 					"accountName": []byte(storageAccountName),
@@ -235,6 +239,15 @@ func (s AzureObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1a
 		s.logger.Error(err, fmt.Sprintf("unable to retrieve secret %s", bucket.Spec.Name))
 		return err
 	}
+	// We remove the finalizer to allow the secret to be deleted
+	originalSecret := secret.DeepCopy()
+	controllerutil.RemoveFinalizer(&secret, v1alpha1.AzureSecretFinalizer)
+	err = s.client.Patch(ctx, &secret, client.MergeFrom(originalSecret))
+	if err != nil {
+		s.logger.Error(err, fmt.Sprintf("unable to remove the finalizer in the secret %s", bucket.Spec.Name))
+		return err
+	}
+	// We delete the secret
 	err = s.client.Delete(ctx, &secret)
 	if err != nil {
 		s.logger.Error(err, fmt.Sprintf("unable to delete secret %s", bucket.Spec.Name))

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- ReclaimPolicy added in the Bucket CR to manage the data clean up (retain or delete).
+- Add a finalizer on the Azure secret to prevent its deletion.
+- Empty all the objects in the S3 bucket in case of bucket deletion.
+
 ## [0.7.0] - 2024-06-18
 
 ### Changed
