@@ -83,14 +83,17 @@ func (s S3ObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1alph
 			})
 		}
 
-		_, err = s.s3Client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
-			Bucket: aws.String(bucket.Spec.Name),
-			Delete: &types.Delete{
-				Objects: objects,
-			},
-		})
-		if err != nil {
-			return err
+		if len(objects) != 0 {
+			_, err = s.s3Client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
+				Bucket: aws.String(bucket.Spec.Name),
+				Delete: &types.Delete{
+					Objects: objects,
+				},
+			})
+			if err != nil {
+				return err
+
+			}
 		}
 	}
 
