@@ -21,9 +21,10 @@ import (
 )
 
 const (
-	BucketFinalizer = "bucket.objectstorage.giantswarm.io"
-	// Secret finalizer need a "/" in the name https://github.com/kubernetes/kubernetes/blob/36981002246682ed7dc4de54ccc2a96c1a0cbbdb/pkg/apis/core/validation/validation.go#L5314-L5320
-	AzureSecretFinalizer = "giantswarm.io/secret.object-storage-operator" // #nosec G101
+	// Finalizer needs to follow the format "domain name, a forward slash and the name of the finalizer"
+	// See https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#finalizers
+	BucketFinalizer      = "objectstorage.giantswarm.io/bucket"
+	AzureSecretFinalizer = "objectstorage.giantswarm.io/secret" // #nosec G101
 	ReclaimPolicyRetain  = "Retain"
 	ReclaimPolicyDelete  = "Delete"
 )
