@@ -72,7 +72,7 @@ func main() {
 	flag.StringVar(&managementCluster.Provider, "management-cluster-provider", "", "Management cluster provider.")
 	flag.StringVar(&managementCluster.Region, "management-cluster-region", "", "Management cluster region.")
 	opts := zap.Options{
-		Development: true,
+		Development: false,
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
