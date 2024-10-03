@@ -69,7 +69,7 @@ func (s IAMAccessRoleServiceAdapter) getRole(ctx context.Context, roleName strin
 
 func (s IAMAccessRoleServiceAdapter) irsaDomain() string {
 	if isChinaRegion(s.cluster.Region) {
-		return fmt.Sprintf("s3.%s.amazonaws.com.cn/%s-g8s-%s-oidc-pod-identity-v2", s.cluster.Region, s.accountId, s.cluster.GetName())
+		return fmt.Sprintf("s3.%s.amazonaws.com.cn/%s-g8s-%s-oidc-pod-identity-v3", s.cluster.Region, s.accountId, s.cluster.GetName())
 	} else {
 		return fmt.Sprintf("irsa.%s.%s", s.cluster.Name, s.cluster.GetBaseDomain())
 	}
