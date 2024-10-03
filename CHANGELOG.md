@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Disable logger development mode to avoid panicking, use zap as logger
+- Fix `irsa domain` in China after we migrated the irsa domain to `oidc-pod-identity-v3`.
 
 ## [0.8.0] - 2024-07-17
 
