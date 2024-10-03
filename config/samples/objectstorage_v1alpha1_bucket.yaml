@@ -12,6 +12,7 @@ spec:
   name: gs-test-object-storage-operator
   expirationPolicy:
     days: 30
+  reclaimPolicy: Retain
   tags:
   - key: installation
     value: golem

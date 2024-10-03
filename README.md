@@ -18,6 +18,9 @@ We add a lifecyle management rule on the storage account to clean old data (`buc
 
 When the object storage is created, we retrieve the Access Key and create a secret in the bucket namespace containing the name of the storage account and the access key. This secret is necessary for the application desiring to use this object storage.
 
+By default, a reclaim policy is set to `reclaimPolicy: Retain` that means when a Bucket CR is deleted, nothing is done. The idea is to avoid accidental Bucket CR deletions that result in data loss on the Cloud provider.
+However, if we need to clean up the bucket, we can set the reclaim policy to `reclaimPolicy: Delete`. This will remove all data on the Cloud provider.
+
 # Testing
 
 You can run all tests with

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
@@ -16,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
 )
@@ -183,7 +185,7 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 		nil,
 	)
 	if err != nil {
-		return fmt.Errorf("Impossible to retrieve Access Keys from Storage Account %s", storageAccountName)
+		return fmt.Errorf("unable to retrieve access keys from storage account %s", storageAccountName)
 	}
 	// Then, we retrieve the Access Key for 'key1'
 	foundKey1 := false
@@ -193,10 +195,13 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 			// Finally, we create the Secret into the bucket namespace
 			secret := &v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      storageAccountName,
+					Name:      bucket.Spec.Name,
 					Namespace: bucket.Namespace,
 					Labels: map[string]string{
 						"giantswarm.io/managed-by": "object-storage-operator",
+					},
+					Finalizers: []string{
+						v1alpha1.AzureSecretFinalizer,
 					},
 				},
 				Data: map[string][]byte{
@@ -208,12 +213,12 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 			if err != nil {
 				return err
 			}
-			s.logger.Info(fmt.Sprintf("Secret %s created", storageAccountName))
+			s.logger.Info(fmt.Sprintf("created secret %s", bucket.Spec.Name))
 			break
 		}
 	}
 	if !foundKey1 {
-		return fmt.Errorf("Impossible to retrieve Access Keys 'key1' from Storage Account %s", storageAccountName)
+		return fmt.Errorf("unable to retrieve access keys 'key1' from storage account %s", storageAccountName)
 	}
 
 	return nil
@@ -242,20 +247,29 @@ func (s AzureObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1a
 	err = s.client.Get(
 		ctx,
 		types.NamespacedName{
+			Name:      bucket.Spec.Name,
 			Namespace: bucket.Namespace,
-			Name:      storageAccountName,
 		},
 		&secret)
 	if err != nil {
-		s.logger.Error(err, fmt.Sprintf("Impossible to retrieve Secret %s", storageAccountName))
+		s.logger.Error(err, fmt.Sprintf("unable to retrieve secret %s", bucket.Spec.Name))
 		return err
 	}
+	// We remove the finalizer to allow the secret to be deleted
+	originalSecret := secret.DeepCopy()
+	controllerutil.RemoveFinalizer(&secret, v1alpha1.AzureSecretFinalizer)
+	err = s.client.Patch(ctx, &secret, client.MergeFrom(originalSecret))
+	if err != nil {
+		s.logger.Error(err, fmt.Sprintf("unable to remove the finalizer in the secret %s", bucket.Spec.Name))
+		return err
+	}
+	// We delete the secret
 	err = s.client.Delete(ctx, &secret)
 	if err != nil {
-		s.logger.Error(err, fmt.Sprintf("Impossible to delete Secret %s", storageAccountName))
+		s.logger.Error(err, fmt.Sprintf("unable to delete secret %s", bucket.Spec.Name))
 		return err
 	}
-	s.logger.Info(fmt.Sprintf("Secret %s deleted", storageAccountName))
+	s.logger.Info(fmt.Sprintf("deleted secret %s", bucket.Spec.Name))
 
 	return nil
 }
@@ -336,6 +350,10 @@ func (s AzureObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket
 	return err
 }
 
+func sanitizeTagKey(tagName string) string {
+	return strings.ReplaceAll(tagName, "-", "_")
+}
+
 // setTags set cluster additionalTags and bucket tags into Storage Container Metadata
 func (s AzureObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	storageAccountName := s.getStorageAccountName(bucket.Spec.Name)
@@ -344,7 +362,7 @@ func (s AzureObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1
 		// We use this to avoid pointer issues in range loops.
 		tag := t
 		if tag.Key != "" && tag.Value != "" {
-			tags[tag.Key] = &tag.Value
+			tags[sanitizeTagKey(tag.Key)] = &tag.Value
 		}
 	}
 	for k, v := range s.cluster.GetTags() {
@@ -352,7 +370,7 @@ func (s AzureObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1
 		key := k
 		value := v
 		if key != "" && value != "" {
-			tags[key] = &value
+			tags[sanitizeTagKey(key)] = &value
 		}
 	}
 

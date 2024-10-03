@@ -21,7 +21,12 @@ import (
 )
 
 const (
-	BucketFinalizer = "bucket.objectstorage.giantswarm.io"
+	// Finalizer needs to follow the format "domain name, a forward slash and the name of the finalizer"
+	// See https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#finalizers
+	BucketFinalizer      = "objectstorage.giantswarm.io/bucket"
+	AzureSecretFinalizer = "objectstorage.giantswarm.io/secret" // #nosec G101
+	ReclaimPolicyRetain  = "Retain"
+	ReclaimPolicyDelete  = "Delete"
 )
 
 // BucketSpec defines the desired state of Bucket
@@ -32,6 +37,10 @@ type BucketSpec struct {
 	// Expiration policy on the objects in the bucket.
 	// +optional
 	ExpirationPolicy *BucketExpirationPolicy `json:"expirationPolicy,omitempty"`
+
+	// Reclaim policy on the bucket.
+	// +optional
+	ReclaimPolicy string `json:"reclaimPolicy,omitempty"`
 
 	// Access role that can be assumed to access the bucket
 	AccessRole *BucketAccessRole `json:"accessRole,omitempty"`
@@ -45,6 +54,9 @@ type BucketSpec struct {
 type BucketAccessRole struct {
 	// Name of the role to create
 	RoleName string `json:"roleName"`
+
+	// ExtraBucketNames is a list of bucket names to add to the role policy in case the role needs to be able to access multiple buckets.
+	ExtraBucketNames []string `json:"extraBucketNames,omitempty"`
 
 	// Name of the service account
 	ServiceAccountName string `json:"serviceAccountName"`

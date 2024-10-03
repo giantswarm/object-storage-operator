@@ -11,6 +11,91 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add doc and unit tests using github copilot.
 
+### Fixed
+
+- Disable logger development mode to avoid panicking, use zap as logger
+- Fix `irsa domain` in China after we migrated the irsa domain to `oidc-pod-identity-v3`.
+
+## [0.8.0] - 2024-07-17
+
+### Added
+
+- ReclaimPolicy added in the Bucket CR to manage the data clean up (retain or delete).
+- Add a finalizer on the Azure secret to prevent its deletion.
+- Empty all the objects in the S3 bucket in case of bucket deletion.
+
+## [0.7.0] - 2024-06-18
+
+### Changed
+
+- Change azure storage account secret name by using the bucket name instead of the storage account name to not be bothered by azure storage account name limitations (up to 24 characters) which truncates secret name for long bucket names like `giantswarm-glippy-mimir-ruler` which becomes `giantswarmglippymimirrul`. As this rule is unpredictable (depends on the installation name), it is better to fix the name of the secret.
+
+## [0.6.1] - 2024-06-17
+
+### Fixed
+
+- Fix object-storage-operator aws templating by using the root scope when possible.
+
+## [0.6.0] - 2024-06-17
+
+### Changed
+
+- Add support for the region of China.
+
+## [0.5.5] - 2024-05-13
+
+### Fixed
+
+- Add basic tag key sanitization for azure bucket tags as they need to match c# identifiers.
+
+## [0.5.4] - 2024-04-08
+
+### Fixed
+
+- Fix KyvernoPolicyException to apply when podSecurityStandard is enabled.
+
+## [0.5.3] - 2024-03-07
+
+### Fixed
+
+- Fix `ConfigureRole` method while untagging bucket (removing empty value in array creation).
+
+## [0.5.2] - 2024-03-07
+
+### Changed
+
+- Set metrics port in deployment and use it in PodMonitor spec.
+
+## [0.5.1] - 2024-03-06
+
+### Changed
+
+- Update deprecated `targetPort` to `port` in PodMonitor.
+
+## [0.5.0] - 2024-02-15
+
+### Changed
+
+- Change rendering of bucket policies to use template/text instead of a string to be able to add extra bucket access (needed for the mimir ruler)
+
+## [0.4.3] - 2024-01-11
+
+### Fixed
+
+- Fix metrics and probes ports.
+
+## [0.4.2] - 2024-01-11
+
+### Fixed
+
+- Fix listenPort to avoid 8081 already used by `azure-private-endpoint-operator`.
+
+## [0.4.1] - 2024-01-10
+
+### Fixed
+
+- Fix PolicyException and PSP.
+
 ## [0.4.0] - 2023-12-06
 
 ### Added
@@ -19,6 +104,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Configure `gsoci.azurecr.io` as the default container image registry.
 - Abstract managementcluster (refactoring).
 - Enforce encryption in transit for s3 Buckets.
 
@@ -46,7 +132,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Implement creation of S3 buckets on CAPA management clusters.
 
-[Unreleased]: https://github.com/giantswarm/object-storage-operator/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/giantswarm/object-storage-operator/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/giantswarm/object-storage-operator/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/giantswarm/object-storage-operator/compare/v0.6.1...v0.7.0
+[0.6.1]: https://github.com/giantswarm/object-storage-operator/compare/v0.6.0...v0.6.1
+[0.6.0]: https://github.com/giantswarm/object-storage-operator/compare/v0.5.5...v0.6.0
+[0.5.5]: https://github.com/giantswarm/object-storage-operator/compare/v0.5.4...v0.5.5
+[0.5.4]: https://github.com/giantswarm/object-storage-operator/compare/v0.5.3...v0.5.4
+[0.5.3]: https://github.com/giantswarm/object-storage-operator/compare/v0.5.2...v0.5.3
+[0.5.2]: https://github.com/giantswarm/object-storage-operator/compare/v0.5.1...v0.5.2
+[0.5.1]: https://github.com/giantswarm/object-storage-operator/compare/v0.5.0...v0.5.1
+[0.5.0]: https://github.com/giantswarm/object-storage-operator/compare/v0.4.3...v0.5.0
+[0.4.3]: https://github.com/giantswarm/object-storage-operator/compare/v0.4.2...v0.4.3
+[0.4.2]: https://github.com/giantswarm/object-storage-operator/compare/v0.4.1...v0.4.2
+[0.4.1]: https://github.com/giantswarm/object-storage-operator/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/giantswarm/object-storage-operator/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/giantswarm/object-storage-operator/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/giantswarm/object-storage-operator/compare/v0.2.0...v0.2.1

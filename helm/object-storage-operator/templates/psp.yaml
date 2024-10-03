@@ -3,6 +3,8 @@
 apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
 metadata:
+  annotations:
+    seccomp.security.alpha.kubernetes.io/allowedProfileNames: runtime/default
   labels:
     {{- include "labels.common" . | nindent 4 }}
   name: {{ include "resource.psp.name" . }}
@@ -28,5 +30,8 @@ spec:
   hostNetwork: {{ eq .Values.managementCluster.provider.kind "capz" }}
   hostIPC: false
   hostPID: false
+  volumes:
+  - secret
+  - projected
 {{- end }}
 {{- end }}

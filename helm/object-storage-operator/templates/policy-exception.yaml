@@ -1,9 +1,11 @@
-{{- if not .Values.global.podSecurityStandards.enforced }}
-{{- if .Capabilities.APIVersions.Has "policy/v1beta1/PodSecurityPolicy" }}
+{{- if .Values.global.podSecurityStandards.enforced }}
+{{- if .Capabilities.APIVersions.Has "kyverno.io/v2alpha1/PolicyException" }}
 {{- if eq .Values.managementCluster.provider.kind "capz" }}
 apiVersion: kyverno.io/v2alpha1
 kind: PolicyException
 metadata:
+  annotations:
+    "helm.sh/hook": "pre-install,pre-upgrade"
   labels:
     {{- include "labels.common" . | nindent 4 }}
   name: {{ include "resource.policyException.name" . }}

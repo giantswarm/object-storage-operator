@@ -1,10 +1,11 @@
 package aws
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"reflect"
-	"strings"
+	"text/template"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
@@ -17,18 +18,30 @@ import (
 )
 
 type IAMAccessRoleServiceAdapter struct {
-	iamClient *iam.Client
-	logger    logr.Logger
-	accountId string
-	cluster   AWSCluster
+	iamClient           *iam.Client
+	logger              logr.Logger
+	accountId           string
+	cluster             AWSCluster
+	trustIdentityPolicy *template.Template
+	rolePolicy          *template.Template
 }
 
 func NewIamService(iamClient *iam.Client, logger logr.Logger, accountId string, cluster AWSCluster) IAMAccessRoleServiceAdapter {
+	trustIdentityPolicy, err := template.New("trustIdentityPolicy").Parse(trustIdentityPolicy)
+	if err != nil {
+		panic(err)
+	}
+	rolePolicy, err := template.New("rolePolicy").Parse(rolePolicy)
+	if err != nil {
+		panic(err)
+	}
 	return IAMAccessRoleServiceAdapter{
-		iamClient: iamClient,
-		logger:    logger,
-		accountId: accountId,
-		cluster:   cluster,
+		iamClient:           iamClient,
+		logger:              logger,
+		accountId:           accountId,
+		cluster:             cluster,
+		trustIdentityPolicy: trustIdentityPolicy,
+		rolePolicy:          rolePolicy,
 	}
 }
 
@@ -52,6 +65,14 @@ func (s IAMAccessRoleServiceAdapter) getRole(ctx context.Context, roleName strin
 		return nil, errors.WithStack(err)
 	}
 	return output.Role, nil
+}
+
+func (s IAMAccessRoleServiceAdapter) irsaDomain() string {
+	if isChinaRegion(s.cluster.Region) {
+		return fmt.Sprintf("s3.%s.amazonaws.com.cn/%s-g8s-%s-oidc-pod-identity-v3", s.cluster.Region, s.accountId, s.cluster.GetName())
+	} else {
+		return fmt.Sprintf("irsa.%s.%s", s.cluster.Name, s.cluster.GetBaseDomain())
+	}
 }
 
 func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *v1alpha1.Bucket) error {
@@ -78,12 +99,22 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 		}
 	}
 
-	trustPolicy := s.templateTrustPolicy(bucket)
+	var trustPolicy bytes.Buffer
+	err = s.trustIdentityPolicy.Execute(&trustPolicy, TrustIdentityPolicyData{
+		AccountId:               s.accountId,
+		AWSDomain:               awsDomain(s.cluster.Region),
+		CloudFrontDomain:        s.irsaDomain(),
+		ServiceAccountName:      bucket.Spec.AccessRole.ServiceAccountName,
+		ServiceAccountNamespace: bucket.Spec.AccessRole.ServiceAccountNamespace,
+	})
+	if err != nil {
+		return err
+	}
 
 	if role == nil {
 		_, err := s.iamClient.CreateRole(ctx, &iam.CreateRoleInput{
 			RoleName:                 aws.String(roleName),
-			AssumeRolePolicyDocument: aws.String(trustPolicy),
+			AssumeRolePolicyDocument: aws.String(trustPolicy.String()),
 			Description:              aws.String("Role for Giant Swarm managed Loki"),
 			Tags:                     tags,
 		})
@@ -94,7 +125,7 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 	} else {
 		_, err = s.iamClient.UpdateAssumeRolePolicy(ctx, &iam.UpdateAssumeRolePolicyInput{
 			RoleName:       aws.String(roleName),
-			PolicyDocument: aws.String(trustPolicy),
+			PolicyDocument: aws.String(trustPolicy.String()),
 		})
 		if err != nil {
 			return errors.WithStack(err)
@@ -102,7 +133,7 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 
 		// Update tags (need to untag with existing keys then retag)
 		if !reflect.DeepEqual(role.Tags, tags) {
-			tagKeys := make([]string, len(role.Tags))
+			tagKeys := []string{}
 			for _, tag := range role.Tags {
 				tagKeys = append(tagKeys, *tag.Key)
 			}
@@ -123,10 +154,22 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 		}
 	}
 
+	var rolePolicy bytes.Buffer
+	var data = RolePolicyData{
+		AWSDomain:        awsDomain(s.cluster.Region),
+		BucketName:       bucket.Spec.Name,
+		ExtraBucketNames: bucket.Spec.AccessRole.ExtraBucketNames,
+	}
+
+	err = s.rolePolicy.Execute(&rolePolicy, data)
+	if err != nil {
+		return err
+	}
+
 	_, err = s.iamClient.PutRolePolicy(ctx, &iam.PutRolePolicyInput{
 		RoleName:       aws.String(roleName),
 		PolicyName:     aws.String(roleName),
-		PolicyDocument: aws.String(templateRolePolicy(bucket)),
+		PolicyDocument: aws.String(rolePolicy.String()),
 	})
 	if err != nil {
 		return errors.WithStack(err)
@@ -246,17 +289,4 @@ func (s *IAMAccessRoleServiceAdapter) cleanAttachedPolicies(ctx context.Context,
 
 	s.logger.Info("cleaned attached and inline policies from IAM Role")
 	return nil
-}
-
-func (s IAMAccessRoleServiceAdapter) templateTrustPolicy(bucket *v1alpha1.Bucket) string {
-	policy := strings.ReplaceAll(trustIdentityPolicy, "@CLOUD_DOMAIN@", s.cluster.GetBaseDomain())
-	policy = strings.ReplaceAll(policy, "@INSTALLATION@", s.cluster.GetName())
-	policy = strings.ReplaceAll(policy, "@ACCOUNT_ID@", s.accountId)
-	policy = strings.ReplaceAll(policy, "@SERVICE_ACCOUNT_NAMESPACE@", bucket.Spec.AccessRole.ServiceAccountNamespace)
-	policy = strings.ReplaceAll(policy, "@SERVICE_ACCOUNT_NAME@", bucket.Spec.AccessRole.ServiceAccountName)
-	return policy
-}
-
-func templateRolePolicy(bucket *v1alpha1.Bucket) string {
-	return strings.ReplaceAll(rolePolicy, "@BUCKET_NAME@", bucket.Spec.Name)
 }
