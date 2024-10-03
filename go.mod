@@ -112,5 +112,6 @@ require (
 replace (
 	// Needed because module declares its path as: dario.cat/mergo
 	github.com/imdario/mergo => github.com/imdario/mergo v0.3.16
+	github.com/onsi/ginkgo/v2 => github.com/onsi/ginkgo/v2 v2.20.2
 	google.golang.org/grpc v1.51.0 => google.golang.org/grpc v1.57.2
 )
