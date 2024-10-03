@@ -65,6 +65,39 @@ func (s S3ObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1alph
 }
 
 func (s S3ObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
+	// First we need to empty the bucket
+	paginator := s3.NewListObjectsV2Paginator(s.s3Client, &s3.ListObjectsV2Input{
+		Bucket: aws.String(bucket.Spec.Name),
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return err
+		}
+
+		var objects []types.ObjectIdentifier
+		for _, object := range page.Contents {
+			objects = append(objects, types.ObjectIdentifier{
+				Key: object.Key,
+			})
+		}
+
+		if len(objects) != 0 {
+			_, err = s.s3Client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
+				Bucket: aws.String(bucket.Spec.Name),
+				Delete: &types.Delete{
+					Objects: objects,
+				},
+			})
+			if err != nil {
+				return err
+
+			}
+		}
+	}
+
+	// Then we can delete the bucket
 	_, err := s.s3Client.DeleteBucket(ctx, &s3.DeleteBucketInput{
 		Bucket: aws.String(bucket.Spec.Name),
 	})
@@ -120,7 +153,10 @@ func (s S3ObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket *v
 
 func (s S3ObjectStorageAdapter) setBucketPolicy(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	var policy bytes.Buffer
-	err := s.bucketPolicyTemplate.Execute(&policy, BucketPolicyData{bucket.Spec.Name})
+	err := s.bucketPolicyTemplate.Execute(&policy, BucketPolicyData{
+		AWSDomain:  awsDomain(s.cluster.Region),
+		BucketName: bucket.Spec.Name,
+	})
 	if err != nil {
 		return err
 	}

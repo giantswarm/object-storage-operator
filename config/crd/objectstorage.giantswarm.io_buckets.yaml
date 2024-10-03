@@ -72,6 +72,9 @@ spec:
               name:
                 description: Name is the name of the bucket to create.
                 type: string
+              reclaimPolicy:
+                description: Reclaim policy on the bucket.
+                type: string
               tags:
                 description: Tags to add to the bucket.
                 items:

@@ -11,6 +11,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Update Kyverno PolicyException to v2beta1.
 
+## [0.9.0] - 2024-10-03
+
+### Added
+
+- Add doc and unit tests using github copilot.
+
+### Fixed
+
+- Disable logger development mode to avoid panicking, use zap as logger
+- Fix `irsa domain` in China after we migrated the irsa domain to `oidc-pod-identity-v3`.
+
+## [0.8.0] - 2024-07-17
+
+### Added
+
+- ReclaimPolicy added in the Bucket CR to manage the data clean up (retain or delete).
+- Add a finalizer on the Azure secret to prevent its deletion.
+- Empty all the objects in the S3 bucket in case of bucket deletion.
+
+## [0.7.0] - 2024-06-18
+
+### Changed
+
+- Change azure storage account secret name by using the bucket name instead of the storage account name to not be bothered by azure storage account name limitations (up to 24 characters) which truncates secret name for long bucket names like `giantswarm-glippy-mimir-ruler` which becomes `giantswarmglippymimirrul`. As this rule is unpredictable (depends on the installation name), it is better to fix the name of the secret.
+
+## [0.6.1] - 2024-06-17
+
+### Fixed
+
+- Fix object-storage-operator aws templating by using the root scope when possible.
+
+## [0.6.0] - 2024-06-17
+
+### Changed
+
+- Add support for the region of China.
+
+## [0.5.5] - 2024-05-13
+
+### Fixed
+
+- Add basic tag key sanitization for azure bucket tags as they need to match c# identifiers.
+
 ## [0.5.4] - 2024-04-08
 
 ### Fixed
@@ -95,7 +138,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Implement creation of S3 buckets on CAPA management clusters.
 
-[Unreleased]: https://github.com/giantswarm/object-storage-operator/compare/v0.5.4...HEAD
+[Unreleased]: https://github.com/giantswarm/object-storage-operator/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/giantswarm/object-storage-operator/compare/v0.8.0...v0.9.0
+[0.8.0]: https://github.com/giantswarm/object-storage-operator/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/giantswarm/object-storage-operator/compare/v0.6.1...v0.7.0
+[0.6.1]: https://github.com/giantswarm/object-storage-operator/compare/v0.6.0...v0.6.1
+[0.6.0]: https://github.com/giantswarm/object-storage-operator/compare/v0.5.5...v0.6.0
+[0.5.5]: https://github.com/giantswarm/object-storage-operator/compare/v0.5.4...v0.5.5
 [0.5.4]: https://github.com/giantswarm/object-storage-operator/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/giantswarm/object-storage-operator/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/giantswarm/object-storage-operator/compare/v0.5.1...v0.5.2
