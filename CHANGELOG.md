@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add doc and unit tests using github copilot.
+
 ### Fixed
 
 - Disable logger development mode to avoid panicking, use zap as logger

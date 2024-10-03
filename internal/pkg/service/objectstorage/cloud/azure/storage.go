@@ -36,6 +36,13 @@ type AzureObjectStorageAdapter struct {
 	listStorageAccountName   []string
 }
 
+// NewAzureStorageService creates a new instance of AzureObjectStorageAdapter.
+// It takes in the necessary parameters to initialize the adapter and returns the created instance.
+// The storageAccountClient, blobContainerClient, and managementPoliciesClient are clients for interacting with Azure storage resources.
+// The logger is used for logging purposes.
+// The cluster represents the Azure cluster.
+// The client is the Kubernetes client used for interacting with the Kubernetes API.
+// The listStorageAccountName is a list of storage account names.
 func NewAzureStorageService(storageAccountClient *armstorage.AccountsClient, blobContainerClient *armstorage.BlobContainersClient, managementPoliciesClient *armstorage.ManagementPoliciesClient, logger logr.Logger, cluster AzureCluster, client client.Client) AzureObjectStorageAdapter {
 	return AzureObjectStorageAdapter{
 		storageAccountClient:     storageAccountClient,
@@ -48,9 +55,11 @@ func NewAzureStorageService(storageAccountClient *armstorage.AccountsClient, blo
 	}
 }
 
-// ExistsBucket checks if the bucket exists on Azure
-// firstly, it checks if the Storage Account exists
-// then, it checks if the Blob Container exists
+// ExistsBucket checks if a bucket exists in the Azure Object Storage.
+// It first checks if the storage account exists on Azure. If the storage account does not exist,
+// it means the bucket does not exist either, so it returns false.
+// If the storage account exists, it then checks if the BlobContainer with the specified name exists in the storage account.
+// If the BlobContainer does not exist, it returns false. Otherwise, it returns true.
 func (s AzureObjectStorageAdapter) ExistsBucket(ctx context.Context, bucket *v1alpha1.Bucket) (bool, error) {
 	// Check if storage account exists on Azure
 	existsStorageAccount, err := s.existsStorageAccount(ctx, bucket.Spec.Name)
@@ -82,7 +91,8 @@ func (s AzureObjectStorageAdapter) ExistsBucket(ctx context.Context, bucket *v1a
 	return true, nil
 }
 
-// ExistsStorageAccount checks Storage Account existence on Azure
+// existsStorageAccount checks if a storage account exists for the given bucket name in Azure Object Storage.
+// It returns a boolean indicating whether the storage account exists or not, along with any error encountered.
 func (s AzureObjectStorageAdapter) existsStorageAccount(ctx context.Context, bucketName string) (bool, error) {
 	availability, err := s.storageAccountClient.CheckNameAvailability(
 		ctx,
@@ -98,6 +108,12 @@ func (s AzureObjectStorageAdapter) existsStorageAccount(ctx context.Context, buc
 }
 
 // CreateBucket creates the Storage Account if it not exists AND the Storage Container
+// CreateBucket creates a bucket in Azure Object Storage.
+// It checks if the storage account exists, and if not, it creates it.
+// Then, it creates a storage container within the storage account.
+// Finally, it retrieves the access key for 'key1' and creates a K8S Secret to store the storage account access key.
+// The Secret is created in the same namespace as the bucket.
+// The function returns an error if any of the operations fail.
 func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	storageAccountName := s.getStorageAccountName(bucket.Spec.Name)
 	// Check if Storage Account exists on Azure
@@ -258,10 +274,9 @@ func (s AzureObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1a
 	return nil
 }
 
-// ConfigureBucket set lifecycle rules (expiration on blob)
+// ConfigureBucket set lifecycle rules (expiration on blob) and tags on the Storage Container
 func (s AzureObjectStorageAdapter) ConfigureBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	var err error
-	// If expiration is not set, we remove all lifecycle rules
 	err = s.setLifecycleRules(ctx, bucket)
 	if err != nil {
 		return err
@@ -378,7 +393,9 @@ func (s AzureObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1
 	return err
 }
 
-// getStorageAccountName returns the sanitized bucket name if already computed or compute it and return it
+// getStorageAccountName returns the storage account name for the given bucket name.
+// It sanitizes the bucket name and checks if it already exists in the list of storage account names.
+// If it exists, it returns the sanitized name. Otherwise, it adds the sanitized name to the list and returns it.
 func (s *AzureObjectStorageAdapter) getStorageAccountName(bucketName string) string {
 	sanitizeName := sanitizeAlphanumeric24(bucketName)
 	for _, name := range s.listStorageAccountName {
@@ -390,7 +407,7 @@ func (s *AzureObjectStorageAdapter) getStorageAccountName(bucketName string) str
 	return sanitizeName
 }
 
-// sanitizeAlphanumeric24 returns the name following Azure rules (alphanumerical characters only + 24 characters MAX)
+// sanitizeAlphanumeric24 sanitizes the given name by removing any non-alphanumeric characters and truncating it to a maximum length of 24 characters.
 // more details https://learn.microsoft.com/en-us/rest/api/storagerp/storage-accounts/get-properties?view=rest-storagerp-2023-01-01&tabs=HTTP#uri-parameters
 func sanitizeAlphanumeric24(name string) string {
 	return truncate.Truncate(sanitize.AlphaNumeric(name, false), 24, "", truncate.PositionEnd)
