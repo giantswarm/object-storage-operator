@@ -52,6 +52,9 @@ spec:
         - containerPort: {{ default 14000 .Values.metricsPort }}
           name: http
           protocol: TCP
+        - containerPort: {{ default 14001 .Values.probePort }}
+          name: health
+          protocol: TCP
         securityContext:
           {{- with .Values.containerSecurityContext }}
           {{- . | toYaml | nindent 10 }}
