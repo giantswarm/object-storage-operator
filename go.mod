@@ -2,11 +2,10 @@ module github.com/giantswarm/object-storage-operator
 
 go 1.23
 
-toolchain go1.23.4
-
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.16.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.8.0
+	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v6 v6.1.0
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage v1.6.0
 	github.com/aquilax/truncate v1.0.0
 	github.com/aws/aws-sdk-go-v2 v1.32.6
