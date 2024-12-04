@@ -7,6 +7,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v6"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/privatedns/armprivatedns"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -64,6 +65,12 @@ func (s AzureObjectStorageService) NewObjectStorageService(ctx context.Context, 
 		return nil, errors.WithStack(err)
 	}
 
+	var privateZonesClientFactory *armprivatedns.ClientFactory
+	privateZonesClientFactory, err = armprivatedns.NewClientFactory(azureCredentials.SubscriptionID, cred, nil)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
 	azurecluster, ok := cluster.(AzureCluster)
 	if !ok {
 		return nil, errors.New("Impossible to cast cluster into Azure cluster")
@@ -73,6 +80,9 @@ func (s AzureObjectStorageService) NewObjectStorageService(ctx context.Context, 
 		storageClientFactory.NewBlobContainersClient(),
 		storageClientFactory.NewManagementPoliciesClient(),
 		networkClientFactory.NewPrivateEndpointsClient(),
+		privateZonesClientFactory.NewPrivateZonesClient(),
+		privateZonesClientFactory.NewRecordSetsClient(),
+		privateZonesClientFactory.NewVirtualNetworkLinksClient(),
 		logger,
 		azurecluster,
 		client,

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v6"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/privatedns/armprivatedns"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage"
 	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
@@ -21,13 +22,16 @@ const (
 )
 
 type AzureObjectStorageAdapter struct {
-	storageAccountClient     *armstorage.AccountsClient
-	blobContainerClient      *armstorage.BlobContainersClient
-	managementPoliciesClient *armstorage.ManagementPoliciesClient
-	privateEndpointsClient   *armnetwork.PrivateEndpointsClient
-	logger                   logr.Logger
-	cluster                  AzureCluster
-	client                   client.Client
+	storageAccountClient      *armstorage.AccountsClient
+	blobContainerClient       *armstorage.BlobContainersClient
+	managementPoliciesClient  *armstorage.ManagementPoliciesClient
+	privateEndpointsClient    *armnetwork.PrivateEndpointsClient
+	privateZonesClient        *armprivatedns.PrivateZonesClient
+	recordSetsClient          *armprivatedns.RecordSetsClient
+	virtualNetworkLinksClient *armprivatedns.VirtualNetworkLinksClient
+	logger                    logr.Logger
+	cluster                   AzureCluster
+	client                    client.Client
 }
 
 // NewAzureStorageService creates a new instance of AzureObjectStorageAdapter.
@@ -41,17 +45,23 @@ func NewAzureStorageService(
 	blobContainerClient *armstorage.BlobContainersClient,
 	managementPoliciesClient *armstorage.ManagementPoliciesClient,
 	privateEndpointsClient *armnetwork.PrivateEndpointsClient,
+	privateZonesClient *armprivatedns.PrivateZonesClient,
+	recordSetsClient *armprivatedns.RecordSetsClient,
+	virtualNetworkLinksClient *armprivatedns.VirtualNetworkLinksClient,
 	logger logr.Logger,
 	cluster AzureCluster,
 	client client.Client) AzureObjectStorageAdapter {
 	return AzureObjectStorageAdapter{
-		storageAccountClient:     storageAccountClient,
-		blobContainerClient:      blobContainerClient,
-		managementPoliciesClient: managementPoliciesClient,
-		privateEndpointsClient:   privateEndpointsClient,
-		logger:                   logger,
-		cluster:                  cluster,
-		client:                   client,
+		storageAccountClient:      storageAccountClient,
+		blobContainerClient:       blobContainerClient,
+		managementPoliciesClient:  managementPoliciesClient,
+		privateEndpointsClient:    privateEndpointsClient,
+		privateZonesClient:        privateZonesClient,
+		recordSetsClient:          recordSetsClient,
+		virtualNetworkLinksClient: virtualNetworkLinksClient,
+		logger:                    logger,
+		cluster:                   cluster,
+		client:                    client,
 	}
 }
 
@@ -76,8 +86,7 @@ func (s AzureObjectStorageAdapter) ExistsBucket(ctx context.Context, bucket *v1a
 	return s.existsContainer(ctx, bucket, storageAccountName)
 }
 
-// / CreateBucket creates the Storage Account if it not exists AND the Storage Container
-// CreateBucket creates a bucket in Azure Object Storage.
+// CreateBucket creates the Storage Account if it not exists AND the Storage Container
 // It checks if the storage account exists, and if not, it creates it.
 // Then, it creates a storage container within the storage account.
 // Finally, it retrieves the access key for 'key1' and creates a K8S Secret to store the storage account access key.
@@ -87,6 +96,27 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 	storageAccountName := sanitizeStorageAccountName(bucket.Spec.Name)
 
 	if err := s.upsertStorageAccount(ctx, bucket, storageAccountName); err != nil {
+		return err
+	}
+
+	// TODO make sure this is not the case on public installations
+	if _, err := s.upsertPrivateZone(ctx, bucket); err != nil {
+		return err
+	}
+
+	// TODO make sure this is not the case on public installations
+	if _, err := s.upsertVirtualNetworkLink(ctx, bucket); err != nil {
+		return err
+	}
+
+	// TODO make sure this is not the case on public installations
+	privateEndpoint, err := s.upsertPrivateEndpoint(ctx, bucket, storageAccountName)
+	if err != nil {
+		return err
+	}
+
+	// TODO make sure this is not the case on public installations
+	if _, err = s.upsertPrivateEndpointARecords(ctx, bucket, privateEndpoint, storageAccountName); err != nil {
 		return err
 	}
 
@@ -139,7 +169,7 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 		return err
 	}
 
-	s.logger.Info(fmt.Sprintf("created secret %s", bucket.Spec.Name))
+	s.logger.Info(fmt.Sprintf("upserted secret %s", bucket.Spec.Name))
 	return nil
 }
 
