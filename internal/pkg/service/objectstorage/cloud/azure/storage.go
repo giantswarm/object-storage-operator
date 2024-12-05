@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v6"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/privatedns/armprivatedns"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage"
 	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
@@ -20,13 +22,16 @@ const (
 )
 
 type AzureObjectStorageAdapter struct {
-	storageAccountClient     *armstorage.AccountsClient
-	blobContainerClient      *armstorage.BlobContainersClient
-	managementPoliciesClient *armstorage.ManagementPoliciesClient
-	logger                   logr.Logger
-	cluster                  AzureCluster
-	client                   client.Client
-	listStorageAccountName   []string
+	storageAccountClient      *armstorage.AccountsClient
+	blobContainerClient       *armstorage.BlobContainersClient
+	managementPoliciesClient  *armstorage.ManagementPoliciesClient
+	privateEndpointsClient    *armnetwork.PrivateEndpointsClient
+	privateZonesClient        *armprivatedns.PrivateZonesClient
+	recordSetsClient          *armprivatedns.RecordSetsClient
+	virtualNetworkLinksClient *armprivatedns.VirtualNetworkLinksClient
+	logger                    logr.Logger
+	cluster                   AzureCluster
+	client                    client.Client
 }
 
 // NewAzureStorageService creates a new instance of AzureObjectStorageAdapter.
@@ -35,16 +40,28 @@ type AzureObjectStorageAdapter struct {
 // The logger is used for logging purposes.
 // The cluster represents the Azure cluster.
 // The client is the Kubernetes client used for interacting with the Kubernetes API.
-// The listStorageAccountName is a list of storage account names.
-func NewAzureStorageService(storageAccountClient *armstorage.AccountsClient, blobContainerClient *armstorage.BlobContainersClient, managementPoliciesClient *armstorage.ManagementPoliciesClient, logger logr.Logger, cluster AzureCluster, client client.Client) AzureObjectStorageAdapter {
+func NewAzureStorageService(
+	storageAccountClient *armstorage.AccountsClient,
+	blobContainerClient *armstorage.BlobContainersClient,
+	managementPoliciesClient *armstorage.ManagementPoliciesClient,
+	privateEndpointsClient *armnetwork.PrivateEndpointsClient,
+	privateZonesClient *armprivatedns.PrivateZonesClient,
+	recordSetsClient *armprivatedns.RecordSetsClient,
+	virtualNetworkLinksClient *armprivatedns.VirtualNetworkLinksClient,
+	logger logr.Logger,
+	cluster AzureCluster,
+	client client.Client) AzureObjectStorageAdapter {
 	return AzureObjectStorageAdapter{
-		storageAccountClient:     storageAccountClient,
-		blobContainerClient:      blobContainerClient,
-		managementPoliciesClient: managementPoliciesClient,
-		logger:                   logger,
-		cluster:                  cluster,
-		client:                   client,
-		listStorageAccountName:   []string{},
+		storageAccountClient:      storageAccountClient,
+		blobContainerClient:       blobContainerClient,
+		managementPoliciesClient:  managementPoliciesClient,
+		privateEndpointsClient:    privateEndpointsClient,
+		privateZonesClient:        privateZonesClient,
+		recordSetsClient:          recordSetsClient,
+		virtualNetworkLinksClient: virtualNetworkLinksClient,
+		logger:                    logger,
+		cluster:                   cluster,
+		client:                    client,
 	}
 }
 
@@ -69,8 +86,7 @@ func (s AzureObjectStorageAdapter) ExistsBucket(ctx context.Context, bucket *v1a
 	return s.existsContainer(ctx, bucket, storageAccountName)
 }
 
-// / CreateBucket creates the Storage Account if it not exists AND the Storage Container
-// CreateBucket creates a bucket in Azure Object Storage.
+// CreateBucket creates the Storage Account if it not exists AND the Storage Container
 // It checks if the storage account exists, and if not, it creates it.
 // Then, it creates a storage container within the storage account.
 // Finally, it retrieves the access key for 'key1' and creates a K8S Secret to store the storage account access key.
@@ -80,6 +96,27 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 	storageAccountName := sanitizeStorageAccountName(bucket.Spec.Name)
 
 	if err := s.upsertStorageAccount(ctx, bucket, storageAccountName); err != nil {
+		return err
+	}
+
+	// TODO make sure this is not the case on public installations
+	if _, err := s.upsertPrivateZone(ctx, bucket); err != nil {
+		return err
+	}
+
+	// TODO make sure this is not the case on public installations
+	if _, err := s.upsertVirtualNetworkLink(ctx, bucket); err != nil {
+		return err
+	}
+
+	// TODO make sure this is not the case on public installations
+	privateEndpoint, err := s.upsertPrivateEndpoint(ctx, bucket, storageAccountName)
+	if err != nil {
+		return err
+	}
+
+	// TODO make sure this is not the case on public installations
+	if _, err = s.upsertPrivateEndpointARecords(ctx, bucket, privateEndpoint, storageAccountName); err != nil {
 		return err
 	}
 
@@ -98,40 +135,41 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 	if err != nil {
 		return fmt.Errorf("unable to retrieve access keys from storage account %s", storageAccountName)
 	}
-	// Then, we retrieve the Access Key for 'key1'
-	foundKey1 := false
-	for _, k := range listKeys.Keys {
-		if *k.KeyName == "key1" {
-			foundKey1 = true
-			// Finally, we create the Secret into the bucket namespace
-			secret := &v1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      bucket.Spec.Name,
-					Namespace: bucket.Namespace,
-					Labels: map[string]string{
-						"giantswarm.io/managed-by": "object-storage-operator",
-					},
-					Finalizers: []string{
-						v1alpha1.AzureSecretFinalizer,
-					},
-				},
-				Data: map[string][]byte{
-					"accountName": []byte(storageAccountName),
-					"accountKey":  []byte(*k.Value),
-				},
-			}
-			err := s.client.Create(ctx, secret)
-			if err != nil {
-				return err
-			}
-			s.logger.Info(fmt.Sprintf("created secret %s", bucket.Spec.Name))
-			break
-		}
-	}
-	if !foundKey1 {
-		return fmt.Errorf("unable to retrieve access keys 'key1' from storage account %s", storageAccountName)
+
+	secret := v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      bucket.Spec.Name,
+			Namespace: bucket.Namespace,
+			Labels: map[string]string{
+				"giantswarm.io/managed-by": "object-storage-operator",
+			},
+			Finalizers: []string{
+				v1alpha1.AzureSecretFinalizer,
+			},
+		},
 	}
 
+	_, err = controllerutil.CreateOrUpdate(ctx, s.client, &secret, func() error {
+		// Then, we retrieve the Access Key for 'key1'
+		for _, k := range listKeys.Keys {
+			if *k.KeyName == "key1" {
+				// Finally, we create the Secret into the bucket namespace
+				secret.Data = map[string][]byte{
+					"accountName": []byte(storageAccountName),
+					"accountKey":  []byte(*k.Value),
+				}
+				return nil
+			}
+		}
+
+		return fmt.Errorf("unable to retrieve access keys 'key1' from storage account %s", storageAccountName)
+	})
+
+	if err != nil {
+		return err
+	}
+
+	s.logger.Info(fmt.Sprintf("upserted secret %s", bucket.Spec.Name))
 	return nil
 }
 
