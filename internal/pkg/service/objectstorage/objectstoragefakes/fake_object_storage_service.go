@@ -400,6 +400,8 @@ func (fake *FakeObjectStorageService) Invocations() map[string][][]interface{} {
 	defer fake.deleteBucketMutex.RUnlock()
 	fake.existsBucketMutex.RLock()
 	defer fake.existsBucketMutex.RUnlock()
+	fake.updateBucketMutex.RLock()
+	defer fake.updateBucketMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

@@ -116,7 +116,6 @@ func (r BucketReconciler) reconcileNormal(ctx context.Context, objectStorageServ
 			logger.Error(err, "Bucket could not be updated")
 			return ctrl.Result{}, errors.WithStack(err)
 		}
-		logger.Info("Bucket exists and you already own it.")
 	}
 
 	logger.Info("Configuring bucket settings")
