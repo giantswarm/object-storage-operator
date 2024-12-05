@@ -60,6 +60,18 @@ type FakeObjectStorageService struct {
 		result1 bool
 		result2 error
 	}
+	UpdateBucketStub        func(context.Context, *v1alpha1.Bucket) error
+	updateBucketMutex       sync.RWMutex
+	updateBucketArgsForCall []struct {
+		arg1 context.Context
+		arg2 *v1alpha1.Bucket
+	}
+	updateBucketReturns struct {
+		result1 error
+	}
+	updateBucketReturnsOnCall map[int]struct {
+		result1 error
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
@@ -313,6 +325,68 @@ func (fake *FakeObjectStorageService) ExistsBucketReturnsOnCall(i int, result1 b
 		result1 bool
 		result2 error
 	}{result1, result2}
+}
+
+func (fake *FakeObjectStorageService) UpdateBucket(arg1 context.Context, arg2 *v1alpha1.Bucket) error {
+	fake.updateBucketMutex.Lock()
+	ret, specificReturn := fake.updateBucketReturnsOnCall[len(fake.updateBucketArgsForCall)]
+	fake.updateBucketArgsForCall = append(fake.updateBucketArgsForCall, struct {
+		arg1 context.Context
+		arg2 *v1alpha1.Bucket
+	}{arg1, arg2})
+	stub := fake.UpdateBucketStub
+	fakeReturns := fake.updateBucketReturns
+	fake.recordInvocation("UpdateBucket", []interface{}{arg1, arg2})
+	fake.updateBucketMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeObjectStorageService) UpdateBucketCallCount() int {
+	fake.updateBucketMutex.RLock()
+	defer fake.updateBucketMutex.RUnlock()
+	return len(fake.updateBucketArgsForCall)
+}
+
+func (fake *FakeObjectStorageService) UpdateBucketCalls(stub func(context.Context, *v1alpha1.Bucket) error) {
+	fake.updateBucketMutex.Lock()
+	defer fake.updateBucketMutex.Unlock()
+	fake.UpdateBucketStub = stub
+}
+
+func (fake *FakeObjectStorageService) UpdateBucketArgsForCall(i int) (context.Context, *v1alpha1.Bucket) {
+	fake.updateBucketMutex.RLock()
+	defer fake.updateBucketMutex.RUnlock()
+	argsForCall := fake.updateBucketArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeObjectStorageService) UpdateBucketReturns(result1 error) {
+	fake.updateBucketMutex.Lock()
+	defer fake.updateBucketMutex.Unlock()
+	fake.UpdateBucketStub = nil
+	fake.updateBucketReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeObjectStorageService) UpdateBucketReturnsOnCall(i int, result1 error) {
+	fake.updateBucketMutex.Lock()
+	defer fake.updateBucketMutex.Unlock()
+	fake.UpdateBucketStub = nil
+	if fake.updateBucketReturnsOnCall == nil {
+		fake.updateBucketReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.updateBucketReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
 }
 
 func (fake *FakeObjectStorageService) Invocations() map[string][][]interface{} {

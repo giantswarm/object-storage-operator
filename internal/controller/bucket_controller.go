@@ -110,6 +110,12 @@ func (r BucketReconciler) reconcileNormal(ctx context.Context, objectStorageServ
 			return ctrl.Result{}, errors.WithStack(err)
 		}
 	} else {
+		logger.Info("Bucket exists and you already own it, let's update it")
+		err = objectStorageService.UpdateBucket(ctx, bucket)
+		if err != nil {
+			logger.Error(err, "Bucket could not be updated")
+			return ctrl.Result{}, errors.WithStack(err)
+		}
 		logger.Info("Bucket exists and you already own it.")
 	}
 
