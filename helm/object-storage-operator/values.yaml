@@ -1,6 +1,6 @@
 global:
   podSecurityStandards:
-    enforced: false
+    enforced: true
 
 image:
   registry: gsoci.azurecr.io
