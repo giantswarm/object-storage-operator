@@ -73,6 +73,9 @@
         "managementCluster": {
             "type": "object",
             "properties": {
+                "baseDomain": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -86,8 +89,14 @@
                             "type": "string"
                         }
                     }
+                },
+                "region": {
+                    "type": "string"
                 }
             }
+        },
+        "metricsPort": {
+            "type": "integer"
         },
         "networkPolicy": {
             "type": "object",
@@ -115,6 +124,9 @@
                     }
                 }
             }
+        },
+        "probePort": {
+            "type": "integer"
         },
         "resources": {
             "type": "object",
