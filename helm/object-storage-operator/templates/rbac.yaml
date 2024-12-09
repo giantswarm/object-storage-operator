@@ -5,21 +5,7 @@ metadata:
     {{- include "labels.common" . | nindent 4 }}
   name: {{ include "resource.default.name" . }}
 rules:
-  - apiGroups:
-      - infrastructure.cluster.x-k8s.io
-    {{ if eq .Values.managementCluster.provider.kind "capa" -}}
-    resources:
-      - awsclusters
-      - awsclusterroleidentities
-    {{ else if eq .Values.managementCluster.provider.kind "capz" -}}
-    resources:
-      - azureclusters
-      - azureclusteridentities
-    {{- end }}
-    verbs:
-      - get
-      - list
-      - watch
+  # RBAC needed for all providers
   - apiGroups:
       - objectstorage.giantswarm.io
     resources:
@@ -45,7 +31,28 @@ rules:
       - events
     verbs:
       - create
+
+  {{ if eq .Values.managementCluster.provider.kind "capa" -}}
+  - apiGroups:
+      - infrastructure.cluster.x-k8s.io
+    resources:
+      - awsclusters
+      - awsclusterroleidentities
+    verbs:
+      - get
+      - list
+      - watch
+  {{- end}}
+
   {{ if eq .Values.managementCluster.provider.kind "capz" -}}
+  - apiGroups:
+      - infrastructure.cluster.x-k8s.io
+    resources:
+      - azureclusters
+    verbs:
+      - get
+      - list
+      - watch
   - apiGroups:
     - infrastructure.cluster.x-k8s.io
     resources:
@@ -57,36 +64,7 @@ rules:
     - patch
     - update
     - watch
-  - apiGroups:
-    - aadpodidentity.k8s.io
-    resources:
-    - azureidentities
-    - azureidentities/status
-    verbs:
-    - get
-    - list
-    - watch
-  - apiGroups:
-    - aadpodidentity.k8s.io
-    resources:
-    - azureidentities
-    verbs:
-    - create
-  - apiGroups:
-    - aadpodidentity.k8s.io
-    resources:
-    - azureidentitybindings
-    - azureidentitybindings/status
-    verbs:
-    - get
-    - list
-    - watch
-  - apiGroups:
-    - aadpodidentity.k8s.io
-    resources:
-    - azureidentitybindings
-    verbs:
-    - create
+  # Needed to store Azure storage account credentials
   - apiGroups:
       - ""
     resources:
@@ -96,6 +74,15 @@ rules:
       - update
       - patch
       - delete
+      - get
+      - list
+      - watch
+  # Needed for Azure to detect private mode
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
       - get
       - list
       - watch

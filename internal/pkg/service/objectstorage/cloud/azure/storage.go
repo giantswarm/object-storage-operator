@@ -8,7 +8,10 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/privatedns/armprivatedns"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage"
 	"github.com/go-logr/logr"
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -86,6 +89,42 @@ func (s AzureObjectStorageAdapter) ExistsBucket(ctx context.Context, bucket *v1a
 	return s.existsContainer(ctx, bucket, storageAccountName)
 }
 
+// isManagementClusterPrivate checks if the management cluster is private by reading the cluster user-values CM
+func (s AzureObjectStorageAdapter) isManagementClusterPrivate(ctx context.Context) (bool, error) {
+	key := types.NamespacedName{
+		Name:      fmt.Sprintf("%s-user-values", s.cluster.GetName()),
+		Namespace: "org-giantswarm",
+	}
+
+	configMap := &v1.ConfigMap{}
+	if err := s.client.Get(ctx, key, configMap); client.IgnoreNotFound(err) != nil {
+		return false, err
+	} else if apierrors.IsNotFound(err) {
+		return false, nil
+	}
+
+	networkingConfig := struct {
+		Global *struct {
+			Connectivity *struct {
+				Network *struct {
+					Mode *string `yaml:"mode"`
+				} `yaml:"network"`
+			} `yaml:"connectivity"`
+		} `yaml:"global"`
+	}{}
+
+	err := yaml.Unmarshal([]byte(configMap.Data["values"]), &networkingConfig)
+	if err != nil {
+		return false, errors.WithStack(err)
+	}
+
+	return networkingConfig.Global != nil &&
+		networkingConfig.Global.Connectivity != nil &&
+		networkingConfig.Global.Connectivity.Network != nil &&
+		networkingConfig.Global.Connectivity.Network.Mode != nil &&
+		*networkingConfig.Global.Connectivity.Network.Mode == "private", nil
+}
+
 // CreateBucket creates the Storage Account if it not exists AND the Storage Container
 // It checks if the storage account exists, and if not, it creates it.
 // Then, it creates a storage container within the storage account.
@@ -95,33 +134,36 @@ func (s AzureObjectStorageAdapter) ExistsBucket(ctx context.Context, bucket *v1a
 func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	storageAccountName := sanitizeStorageAccountName(bucket.Spec.Name)
 
-	if err := s.upsertStorageAccount(ctx, bucket, storageAccountName); err != nil {
-		return err
-	}
-
-	// TODO make sure this is not the case on public installations
-	if _, err := s.upsertPrivateZone(ctx, bucket); err != nil {
-		return err
-	}
-
-	// TODO make sure this is not the case on public installations
-	if _, err := s.upsertVirtualNetworkLink(ctx, bucket); err != nil {
-		return err
-	}
-
-	// TODO make sure this is not the case on public installations
-	privateEndpoint, err := s.upsertPrivateEndpoint(ctx, bucket, storageAccountName)
+	isPrivateManagementCluster, err := s.isManagementClusterPrivate(ctx)
 	if err != nil {
 		return err
 	}
 
-	// TODO make sure this is not the case on public installations
-	if _, err = s.upsertPrivateEndpointARecords(ctx, bucket, privateEndpoint, storageAccountName); err != nil {
+	if err := s.upsertStorageAccount(ctx, bucket, storageAccountName, isPrivateManagementCluster); err != nil {
 		return err
 	}
 
 	if err := s.upsertContainer(ctx, bucket, storageAccountName); err != nil {
 		return err
+	}
+
+	if isPrivateManagementCluster {
+		if _, err := s.upsertPrivateZone(ctx, bucket); err != nil {
+			return err
+		}
+
+		if _, err := s.upsertVirtualNetworkLink(ctx, bucket); err != nil {
+			return err
+		}
+
+		privateEndpoint, err := s.upsertPrivateEndpoint(ctx, bucket, storageAccountName)
+		if err != nil {
+			return err
+		}
+
+		if _, err = s.upsertPrivateEndpointARecords(ctx, bucket, privateEndpoint, storageAccountName); err != nil {
+			return err
+		}
 	}
 
 	// Create a K8S Secret to store Storage Account Access Key
