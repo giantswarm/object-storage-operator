@@ -64,6 +64,11 @@ func (s S3ObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1alph
 	return err
 }
 
+// UpdateBucket does nothing as we cannot update an s3 bucket
+func (s S3ObjectStorageAdapter) UpdateBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
+	return nil
+}
+
 func (s S3ObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	// First we need to empty the bucket
 	paginator := s3.NewListObjectsV2Paginator(s.s3Client, &s3.ListObjectsV2Input{
