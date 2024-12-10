@@ -1,7 +1,3 @@
-global:
-  podSecurityStandards:
-    enforced: true
-
 image:
   registry: gsoci.azurecr.io
   repository: "giantswarm/object-storage-operator"
