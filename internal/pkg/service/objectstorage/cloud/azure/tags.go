@@ -12,17 +12,12 @@ func sanitizeTagKey(tagName string) string {
 
 func (s AzureObjectStorageAdapter) getBucketTags(bucket *v1alpha1.Bucket) map[string]*string {
 	tags := make(map[string]*string)
-	for _, t := range bucket.Spec.Tags {
-		// We use this to avoid pointer issues in range loops.
-		tag := t
+	for _, tag := range bucket.Spec.Tags {
 		if tag.Key != "" && tag.Value != "" {
 			tags[sanitizeTagKey(tag.Key)] = &tag.Value
 		}
 	}
-	for k, v := range s.cluster.GetTags() {
-		// We use this to avoid pointer issues in range loops.
-		key := k
-		value := v
+	for key, value := range s.cluster.GetTags() {
 		if key != "" && value != "" {
 			tags[sanitizeTagKey(key)] = &value
 		}
