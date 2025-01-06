@@ -69,7 +69,7 @@ func (s AzureObjectStorageAdapter) ExistsBucket(ctx context.Context, bucket *v1a
 	return s.existsContainer(ctx, bucket, storageAccountName)
 }
 
-// / CreateBucket creates the Storage Account if it not exists AND the Storage Container
+// CreateBucket creates the Storage Account if it not exists AND the Storage Container
 // CreateBucket creates a bucket in Azure Object Storage.
 // It checks if the storage account exists, and if not, it creates it.
 // Then, it creates a storage container within the storage account.
