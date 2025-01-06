@@ -141,6 +141,7 @@ func (s AzureObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket
 		)
 		if err != nil {
 			s.logger.Error(err, fmt.Sprintf("Error creating/updating Policy Rule for Storage Account %s", storageAccountName))
+			return err
 		}
 		return err
 	}
