@@ -15,11 +15,16 @@ import (
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
 )
 
-func (s AzureObjectStorageAdapter) upsertStorageAccount(ctx context.Context, bucket *v1alpha1.Bucket, storageAccountName string) error {
+func (s AzureObjectStorageAdapter) upsertStorageAccount(ctx context.Context, bucket *v1alpha1.Bucket, storageAccountName string, isPrivateManagementCluster bool) error {
 	// Check if Storage Account exists on Azure
 	existsStorageAccount, err := s.existsStorageAccount(ctx, storageAccountName)
 	if err != nil {
 		return err
+	}
+
+	publicNetworkAccess := armstorage.PublicNetworkAccessEnabled
+	if isPrivateManagementCluster {
+		publicNetworkAccess = armstorage.PublicNetworkAccessDisabled
 	}
 
 	// Create or Update Storage Account
@@ -47,8 +52,7 @@ func (s AzureObjectStorageAdapter) upsertStorageAccount(ctx context.Context, buc
 				},
 				EnableHTTPSTrafficOnly: to.Ptr(true),
 				MinimumTLSVersion:      to.Ptr(armstorage.MinimumTLSVersionTLS12),
-				// TODO make sure this is not the case on gaggle or public installations
-				PublicNetworkAccess: to.Ptr(armstorage.PublicNetworkAccessDisabled),
+				PublicNetworkAccess:    to.Ptr(publicNetworkAccess),
 			},
 			Tags: s.getBucketTags(bucket),
 		}, nil)
