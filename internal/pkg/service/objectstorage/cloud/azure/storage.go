@@ -215,7 +215,7 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 	return nil
 }
 
-// UpdateBucket creates or updates the Storage Account if it not exists AND the Storage Container
+// UpdateBucket creates or updates the Storage Account AND the Storage Container
 func (s AzureObjectStorageAdapter) UpdateBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
 	return s.CreateBucket(ctx, bucket)
 }

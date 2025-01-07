@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Secure Azure Storage Account by making them private.
 - Update Kyverno PolicyException to v2beta1.
 
+### Removed
+
+- Remove PSP.
+
 ## [0.9.0] - 2024-10-03
 
 ### Added
