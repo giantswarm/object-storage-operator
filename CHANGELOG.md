@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Secure Azure Storage Account by making them private.
+- Secure Azure Storage Account by making them private and accessible through an Azure Private Endpoint. This also requires the creation of a private DNS zone and A record.
 - Update Kyverno PolicyException to v2beta1.
 
 ### Removed
