@@ -81,5 +81,20 @@ func (s AzureObjectStorageAdapter) upsertContainer(ctx context.Context, bucket *
 		s.logger.Info(fmt.Sprintf("storage container %s updated", bucket.Spec.Name))
 	}
 
-	return nil
+	_, err = s.blobServicesClient.SetServiceProperties(
+		ctx,
+		s.cluster.GetResourceGroup(),
+		storageAccountName,
+		armstorage.BlobServiceProperties{
+			BlobServiceProperties: &armstorage.BlobServicePropertiesProperties{
+				DeleteRetentionPolicy: &armstorage.DeleteRetentionPolicy{
+					Enabled: to.Ptr(true),
+					Days:    to.Ptr(int32(7)),
+				},
+			},
+		},
+		nil,
+	)
+
+	return err
 }

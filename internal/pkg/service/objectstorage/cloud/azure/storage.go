@@ -27,6 +27,7 @@ const (
 type AzureObjectStorageAdapter struct {
 	storageAccountClient      *armstorage.AccountsClient
 	blobContainerClient       *armstorage.BlobContainersClient
+	blobServicesClient        *armstorage.BlobServicesClient
 	managementPoliciesClient  *armstorage.ManagementPoliciesClient
 	privateEndpointsClient    *armnetwork.PrivateEndpointsClient
 	privateZonesClient        *armprivatedns.PrivateZonesClient
@@ -46,6 +47,7 @@ type AzureObjectStorageAdapter struct {
 func NewAzureStorageService(
 	storageAccountClient *armstorage.AccountsClient,
 	blobContainerClient *armstorage.BlobContainersClient,
+	blobServicesClient *armstorage.BlobServicesClient,
 	managementPoliciesClient *armstorage.ManagementPoliciesClient,
 	privateEndpointsClient *armnetwork.PrivateEndpointsClient,
 	privateZonesClient *armprivatedns.PrivateZonesClient,
@@ -57,6 +59,7 @@ func NewAzureStorageService(
 	return AzureObjectStorageAdapter{
 		storageAccountClient:      storageAccountClient,
 		blobContainerClient:       blobContainerClient,
+		blobServicesClient:        blobServicesClient,
 		managementPoliciesClient:  managementPoliciesClient,
 		privateEndpointsClient:    privateEndpointsClient,
 		privateZonesClient:        privateZonesClient,

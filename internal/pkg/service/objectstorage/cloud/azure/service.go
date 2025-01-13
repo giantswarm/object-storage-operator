@@ -78,6 +78,7 @@ func (s AzureObjectStorageService) NewObjectStorageService(ctx context.Context, 
 	return NewAzureStorageService(
 		storageClientFactory.NewAccountsClient(),
 		storageClientFactory.NewBlobContainersClient(),
+		storageClientFactory.NewBlobServicesClient(),
 		storageClientFactory.NewManagementPoliciesClient(),
 		networkClientFactory.NewPrivateEndpointsClient(),
 		privateZonesClientFactory.NewPrivateZonesClient(),
