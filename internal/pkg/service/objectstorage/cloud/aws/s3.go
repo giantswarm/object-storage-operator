@@ -55,11 +55,16 @@ func (s S3ObjectStorageAdapter) ExistsBucket(ctx context.Context, bucket *v1alph
 }
 
 func (s S3ObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
+	createBucketConfiguration := types.CreateBucketConfiguration{}
+	// If the region is us-east-1, then location needs to be null, FFS
+	// https://github.com/aws/aws-sdk-go-v2/issues/1894
+	if s.cluster.GetRegion() != "us-east-1" {
+		createBucketConfiguration.LocationConstraint = types.BucketLocationConstraint(s.cluster.GetRegion())
+	}
+
 	_, err := s.s3Client.CreateBucket(ctx, &s3.CreateBucketInput{
-		Bucket: aws.String(bucket.Spec.Name),
-		CreateBucketConfiguration: &types.CreateBucketConfiguration{
-			LocationConstraint: types.BucketLocationConstraint(s.cluster.GetRegion()),
-		},
+		Bucket:                    aws.String(bucket.Spec.Name),
+		CreateBucketConfiguration: &createBucketConfiguration,
 	})
 	return err
 }
