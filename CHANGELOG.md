@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix xml output for us-east-1 region as the bucket creation config needs to be empty.
+
 ## [0.10.1] - 2025-02-06
 
 ### Fixed
