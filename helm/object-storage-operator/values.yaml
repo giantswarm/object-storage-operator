@@ -32,10 +32,10 @@ containerSecurityContext:
 resources:
   requests:
     cpu: 100m
-    memory: 200Mi
+    memory: 50Mi
   limits:
     cpu: 100m
-    memory: 500Mi
+    memory: 100Mi
 
 networkPolicy:
   flavor: cilium

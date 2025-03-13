@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Stop caching helm secrets in the operator to reduce resource usage.
 - Use smaller dockerfile to reduce build time as ABS already generates the go binary.
 
 ## [0.10.2] - 2025-02-06
