@@ -126,7 +126,7 @@ func (s AzureObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket
 									Actions: &armstorage.ManagementPolicyAction{
 										BaseBlob: &armstorage.ManagementPolicyBaseBlob{
 											Delete: &armstorage.DateAfterModification{
-												DaysAfterModificationGreaterThan: to.Ptr[float32](float32(bucket.Spec.ExpirationPolicy.Days)),
+												DaysAfterModificationGreaterThan: to.Ptr(float32(bucket.Spec.ExpirationPolicy.Days)),
 											},
 										},
 									},

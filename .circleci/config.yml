@@ -23,6 +23,7 @@ workflows:
         requires:
         - unit-tests
         name: go-build
+        resource_class: large
         binary: object-storage-operator
         filters:
           tags:
