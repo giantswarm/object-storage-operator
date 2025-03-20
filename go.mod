@@ -20,7 +20,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.11.2
 	github.com/mrz1836/go-sanitize v1.3.4
-	github.com/onsi/ginkgo/v2 v2.23.1
+	github.com/onsi/ginkgo/v2 v2.23.2
 	github.com/onsi/gomega v1.36.2
 	github.com/pkg/errors v0.9.1
 	gopkg.in/yaml.v3 v3.0.1
@@ -110,6 +110,6 @@ require (
 replace (
 	// Needed because module declares its path as: dario.cat/mergo
 	github.com/imdario/mergo => github.com/imdario/mergo v0.3.16
-	github.com/onsi/ginkgo/v2 => github.com/onsi/ginkgo/v2 v2.23.1
+	github.com/onsi/ginkgo/v2 => github.com/onsi/ginkgo/v2 v2.23.2
 	google.golang.org/grpc v1.51.0 => google.golang.org/grpc v1.57.2
 )
