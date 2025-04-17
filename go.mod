@@ -10,11 +10,11 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage v1.8.0
 	github.com/aquilax/truncate v1.0.1
 	github.com/aws/aws-sdk-go-v2 v1.36.3
-	github.com/aws/aws-sdk-go-v2/config v1.29.13
-	github.com/aws/aws-sdk-go-v2/credentials v1.17.66
+	github.com/aws/aws-sdk-go-v2/config v1.29.14
+	github.com/aws/aws-sdk-go-v2/credentials v1.17.67
 	github.com/aws/aws-sdk-go-v2/service/iam v1.41.1
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.79.1
-	github.com/aws/aws-sdk-go-v2/service/sts v1.33.18
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.79.2
+	github.com/aws/aws-sdk-go-v2/service/sts v1.33.19
 	github.com/aws/smithy-go v1.22.3
 	github.com/go-logr/logr v1.4.2
 	github.com/google/go-cmp v0.7.0
