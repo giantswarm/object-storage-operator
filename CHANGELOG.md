@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.4] - 2025-04-23
+
 ### Fixed
 
 - Fix golangci-lint v2 problems.
@@ -168,7 +170,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Implement creation of S3 buckets on CAPA management clusters.
 
-[Unreleased]: https://github.com/giantswarm/object-storage-operator/compare/v0.10.3...HEAD
+[Unreleased]: https://github.com/giantswarm/object-storage-operator/compare/v0.10.4...HEAD
+[0.10.4]: https://github.com/giantswarm/object-storage-operator/compare/v0.10.3...v0.10.4
 [0.10.3]: https://github.com/giantswarm/object-storage-operator/compare/v0.10.2...v0.10.3
 [0.10.2]: https://github.com/giantswarm/object-storage-operator/compare/v0.10.1...v0.10.2
 [0.10.1]: https://github.com/giantswarm/object-storage-operator/compare/v0.10.0...v0.10.1
