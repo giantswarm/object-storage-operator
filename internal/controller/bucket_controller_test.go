@@ -40,7 +40,7 @@ var _ = Describe("Bucket Reconciler", func() {
 		fakeClusterGetter    clusterfakes.FakeClusterGetter
 		objectStorageService objectstoragefakes.FakeObjectStorageService
 		accessRoleService    objectstoragefakes.FakeAccessRoleService
-		bucketKey            = reconciler.ManagementCluster.ToObjectKey(BucketName, BucketNamespace)
+		bucketKey            = reconciler.ToObjectKey(BucketName, BucketNamespace)
 	)
 
 	// creates the dummy bucket and clients
@@ -128,8 +128,8 @@ var _ = Describe("Bucket Reconciler", func() {
 							"kind":       "AWSCluster",
 							"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta2",
 							"metadata": map[string]interface{}{
-								"name":      reconciler.ManagementCluster.Name,
-								"namespace": reconciler.ManagementCluster.Namespace,
+								"name":      reconciler.Name,
+								"namespace": reconciler.Namespace,
 							},
 							"spec": map[string]interface{}{
 								"identityRef": map[string]interface{}{},
@@ -156,12 +156,12 @@ var _ = Describe("Bucket Reconciler", func() {
 							"kind":       "AWSCluster",
 							"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta2",
 							"metadata": map[string]interface{}{
-								"name":      reconciler.ManagementCluster.Name,
-								"namespace": reconciler.ManagementCluster.Namespace,
+								"name":      reconciler.Name,
+								"namespace": reconciler.Namespace,
 							},
 							"spec": map[string]interface{}{
 								"identityRef": map[string]interface{}{
-									"name": reconciler.ManagementCluster.Name,
+									"name": reconciler.Name,
 								},
 							},
 						},
@@ -186,8 +186,8 @@ var _ = Describe("Bucket Reconciler", func() {
 							"kind":       "AWSClusterRoleIdentity",
 							"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta2",
 							"metadata": map[string]interface{}{
-								"name":      reconciler.ManagementCluster.Name,
-								"namespace": reconciler.ManagementCluster.Namespace,
+								"name":      reconciler.Name,
+								"namespace": reconciler.Namespace,
 							},
 							"spec": map[string]interface{}{},
 						},
@@ -199,12 +199,12 @@ var _ = Describe("Bucket Reconciler", func() {
 							"kind":       "AWSCluster",
 							"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta2",
 							"metadata": map[string]interface{}{
-								"name":      reconciler.ManagementCluster.Name,
-								"namespace": reconciler.ManagementCluster.Namespace,
+								"name":      reconciler.Name,
+								"namespace": reconciler.Namespace,
 							},
 							"spec": map[string]interface{}{
 								"identityRef": map[string]interface{}{
-									"name": reconciler.ManagementCluster.Name,
+									"name": reconciler.Name,
 								},
 							},
 						},
@@ -231,8 +231,8 @@ var _ = Describe("Bucket Reconciler", func() {
 						"kind":       "AWSClusterRoleIdentity",
 						"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta2",
 						"metadata": map[string]interface{}{
-							"name":      reconciler.ManagementCluster.Name,
-							"namespace": reconciler.ManagementCluster.Namespace,
+							"name":      reconciler.Name,
+							"namespace": reconciler.Namespace,
 						},
 						"spec": map[string]interface{}{
 							"roleARN": "role",
@@ -246,12 +246,12 @@ var _ = Describe("Bucket Reconciler", func() {
 						"kind":       "AWSCluster",
 						"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta2",
 						"metadata": map[string]interface{}{
-							"name":      reconciler.ManagementCluster.Name,
-							"namespace": reconciler.ManagementCluster.Namespace,
+							"name":      reconciler.Name,
+							"namespace": reconciler.Namespace,
 						},
 						"spec": map[string]interface{}{
 							"identityRef": map[string]interface{}{
-								"name": reconciler.ManagementCluster.Name,
+								"name": reconciler.Name,
 							},
 						},
 					},
@@ -259,10 +259,10 @@ var _ = Describe("Bucket Reconciler", func() {
 				_ = fakeClient.Create(ctx, cluster)
 
 				var awsCluster = aws.AWSCluster{
-					Name:       reconciler.ManagementCluster.Name,
-					Namespace:  reconciler.ManagementCluster.Namespace,
-					BaseDomain: reconciler.ManagementCluster.BaseDomain,
-					Region:     reconciler.ManagementCluster.Region,
+					Name:       reconciler.Name,
+					Namespace:  reconciler.Namespace,
+					BaseDomain: reconciler.BaseDomain,
+					Region:     reconciler.Region,
 					Tags:       map[string]string{},
 					Credentials: aws.AWSCredentials{
 						Role: "role",
@@ -559,8 +559,8 @@ var _ = Describe("Bucket Reconciler", func() {
 							"kind":       "AzureCluster",
 							"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta1",
 							"metadata": map[string]interface{}{
-								"name":      reconciler.ManagementCluster.Name,
-								"namespace": reconciler.ManagementCluster.Namespace,
+								"name":      reconciler.Name,
+								"namespace": reconciler.Namespace,
 							},
 							"spec": map[string]interface{}{
 								"identityRef": map[string]interface{}{},
@@ -587,12 +587,12 @@ var _ = Describe("Bucket Reconciler", func() {
 							"kind":       "AzureCluster",
 							"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta1",
 							"metadata": map[string]interface{}{
-								"name":      reconciler.ManagementCluster.Name,
-								"namespace": reconciler.ManagementCluster.Namespace,
+								"name":      reconciler.Name,
+								"namespace": reconciler.Namespace,
 							},
 							"spec": map[string]interface{}{
 								"identityRef": map[string]interface{}{
-									"name": reconciler.ManagementCluster.Name,
+									"name": reconciler.Name,
 								},
 							},
 						},
@@ -617,8 +617,8 @@ var _ = Describe("Bucket Reconciler", func() {
 							"kind":       "AzureClusterIdentity",
 							"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta1",
 							"metadata": map[string]interface{}{
-								"name":      reconciler.ManagementCluster.Name,
-								"namespace": reconciler.ManagementCluster.Namespace,
+								"name":      reconciler.Name,
+								"namespace": reconciler.Namespace,
 							},
 							"spec": map[string]interface{}{
 								"clientID":   "clientID",
@@ -634,12 +634,12 @@ var _ = Describe("Bucket Reconciler", func() {
 							"kind":       "AzureCluster",
 							"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta1",
 							"metadata": map[string]interface{}{
-								"name":      reconciler.ManagementCluster.Name,
-								"namespace": reconciler.ManagementCluster.Namespace,
+								"name":      reconciler.Name,
+								"namespace": reconciler.Namespace,
 							},
 							"spec": map[string]interface{}{
 								"identityRef": map[string]interface{}{
-									"name": reconciler.ManagementCluster.Name,
+									"name": reconciler.Name,
 								},
 							},
 						},
@@ -666,8 +666,8 @@ var _ = Describe("Bucket Reconciler", func() {
 						"kind":       "AzureClusterIdentity",
 						"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta1",
 						"metadata": map[string]interface{}{
-							"name":      reconciler.ManagementCluster.Name,
-							"namespace": reconciler.ManagementCluster.Namespace,
+							"name":      reconciler.Name,
+							"namespace": reconciler.Namespace,
 						},
 						"spec": map[string]interface{}{
 							"clientID":   "clientID",
@@ -684,12 +684,12 @@ var _ = Describe("Bucket Reconciler", func() {
 						"kind":       "AzureCluster",
 						"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta1",
 						"metadata": map[string]interface{}{
-							"name":      reconciler.ManagementCluster.Name,
-							"namespace": reconciler.ManagementCluster.Namespace,
+							"name":      reconciler.Name,
+							"namespace": reconciler.Namespace,
 						},
 						"spec": map[string]interface{}{
 							"identityRef": map[string]interface{}{
-								"name": reconciler.ManagementCluster.Name,
+								"name": reconciler.Name,
 							},
 						},
 					},
@@ -697,10 +697,10 @@ var _ = Describe("Bucket Reconciler", func() {
 				_ = fakeClient.Create(ctx, cluster)
 
 				var azureCluster = azure.AzureCluster{
-					Name:       reconciler.ManagementCluster.Name,
-					Namespace:  reconciler.ManagementCluster.Namespace,
-					BaseDomain: reconciler.ManagementCluster.BaseDomain,
-					Region:     reconciler.ManagementCluster.Region,
+					Name:       reconciler.Name,
+					Namespace:  reconciler.Namespace,
+					BaseDomain: reconciler.BaseDomain,
+					Region:     reconciler.Region,
 					Tags:       map[string]string{},
 					Credentials: azure.AzureCredentials{
 						ResourceGroup:  "resourceGroup",

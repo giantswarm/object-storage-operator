@@ -55,14 +55,14 @@ func (r BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	defer logger.Info("Finished reconciling Bucket")
 
 	bucket := &v1alpha1.Bucket{}
-	err := r.Client.Get(ctx, req.NamespacedName, bucket)
+	err := r.Get(ctx, req.NamespacedName, bucket)
 	if err != nil {
 		return ctrl.Result{}, errors.WithStack(client.IgnoreNotFound(err))
 	}
 
 	logger.WithValues("bucket", bucket.Spec.Name)
 
-	cluster, err := r.ClusterGetter.GetCluster(ctx)
+	cluster, err := r.GetCluster(ctx)
 	if err != nil {
 		return ctrl.Result{}, errors.WithStack(err)
 	}
@@ -92,7 +92,7 @@ func (r BucketReconciler) reconcileNormal(ctx context.Context, objectStorageServ
 	// If the Bucket doesn't have our finalizer, add it.
 	if controllerutil.AddFinalizer(bucket, v1alpha1.BucketFinalizer) {
 		// Register the finalizer immediately to avoid orphaning AWS resources on delete
-		if err := r.Client.Patch(ctx, bucket, client.MergeFrom(originalBucket)); err != nil {
+		if err := r.Patch(ctx, bucket, client.MergeFrom(originalBucket)); err != nil {
 			return ctrl.Result{}, errors.WithStack(err)
 		}
 	}
@@ -181,7 +181,7 @@ func (r BucketReconciler) reconcileDelete(ctx context.Context, objectStorageServ
 			// Remove the finalizer.
 			originalBucket := bucket.DeepCopy()
 			controllerutil.RemoveFinalizer(bucket, v1alpha1.BucketFinalizer)
-			return r.Client.Patch(ctx, bucket, client.MergeFrom(originalBucket))
+			return r.Patch(ctx, bucket, client.MergeFrom(originalBucket))
 		case v1alpha1.ReclaimPolicyRetain:
 			logger.Info("Reclaim policy is set to retain, not deleting bucket")
 		default:
