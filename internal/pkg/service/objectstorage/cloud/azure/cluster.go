@@ -118,6 +118,15 @@ func (c AzureClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, er
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
+	case "WorkloadIdentity":
+		tenantID, found, err = unstructured.NestedString(clusterIdentity.Object, "spec", "tenantID")
+		if !found || err != nil {
+			return nil, errors.New("Missing or incorrect identity.tenantID")
+		}
+		clientID, found, err = unstructured.NestedString(clusterIdentity.Object, "spec", "clientID")
+		if !found || err != nil {
+			return nil, errors.New("Missing or incorrect identity.clientID")
+		}
 	default:
 		return nil, errors.Errorf("Unsupported TypeIdentity %s", typeIdentity)
 	}
