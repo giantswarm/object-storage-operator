@@ -49,7 +49,16 @@ func (c AzureClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, er
 		logger.Info("Missing identity, skipping")
 		return nil, errors.New("Missing management cluster identityRef")
 	}
-	clusterIdentity, err := c.getClusterCRIdentiy(ctx, clusterIdentityName)
+	clusterIdentityNamespace, found, err := unstructured.NestedString(cluster.Object, "spec", "identityRef", "namespace")
+	if err != nil {
+		logger.Error(err, "Identity namespace is not a string")
+		return nil, errors.WithStack(err)
+	}
+	if !found || clusterIdentityNamespace == "" {
+		logger.Info("Missing identity namespace, using management cluster namespace")
+		clusterIdentityNamespace = c.ManagementCluster.Namespace
+	}
+	clusterIdentity, err := c.getClusterCRIdentity(ctx, clusterIdentityName, clusterIdentityNamespace)
 	if err != nil {
 		logger.Error(err, "Missing management cluster identity AzureClusterIdentity CR")
 		return nil, errors.WithStack(err)
@@ -142,7 +151,7 @@ func (c AzureClusterGetter) getClusterCR(ctx context.Context) (*unstructured.Uns
 	return cluster, errors.WithStack(err)
 }
 
-func (c AzureClusterGetter) getClusterCRIdentiy(ctx context.Context, clusterIdentityName string) (*unstructured.Unstructured, error) {
+func (c AzureClusterGetter) getClusterCRIdentity(ctx context.Context, clusterIdentityName string, clusterIdentityNamespace string) (*unstructured.Unstructured, error) {
 	clusterIdentity := &unstructured.Unstructured{}
 	clusterIdentity.SetGroupVersionKind(schema.GroupVersionKind{
 		Group:   Group,
@@ -150,7 +159,7 @@ func (c AzureClusterGetter) getClusterCRIdentiy(ctx context.Context, clusterIden
 		Version: VersionClusterIdentity,
 	})
 
-	err := c.Client.Get(ctx, c.ManagementCluster.ToObjectKey(clusterIdentityName, c.ManagementCluster.Namespace), clusterIdentity)
+	err := c.Client.Get(ctx, c.ManagementCluster.ToObjectKey(clusterIdentityName, clusterIdentityNamespace), clusterIdentity)
 	return clusterIdentity, errors.WithStack(err)
 }
 
