@@ -73,9 +73,6 @@ spec:
             name: azure-identity-token
             readOnly: true
           {{- end }}
-      {{ if eq .Values.managementCluster.provider.kind "capz" -}}
-      hostNetwork: true
-      {{- end }}
       volumes:
       {{ if eq .Values.managementCluster.provider.kind "capa" -}}
       - name: credentials
