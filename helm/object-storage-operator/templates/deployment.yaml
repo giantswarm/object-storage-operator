@@ -43,7 +43,7 @@ spec:
             value: /home/.aws/credentials
           {{ else if eq .Values.managementCluster.provider.kind "capz" }}
           - name: AZURE_FEDERATED_TOKEN_FILE
-          value: /var/run/secrets/azure/tokens/azure-identity-token
+            value: /var/run/secrets/azure/tokens/azure-identity-token
           {{- end }}
         livenessProbe:
           httpGet:
