@@ -3,9 +3,6 @@ kind: Deployment
 metadata:
   labels:
     {{- include "labels.common" . | nindent 4 }}
-    {{ if eq .Values.managementCluster.provider.kind "capz" -}}
-    azure.workload.identity/use: "true"
-    {{- end }}
   name: {{ include "resource.default.name" . }}
   namespace: {{ include "resource.default.namespace" . }}
 spec:
