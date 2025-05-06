@@ -49,6 +49,14 @@ func (s AzureObjectStorageService) NewObjectStorageService(ctx context.Context, 
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
+	case "WorkloadIdentity":
+		cred, err = azidentity.NewWorkloadIdentityCredential(&azidentity.WorkloadIdentityCredentialOptions{
+			TenantID: azureCredentials.TenantID,
+			ClientID: azureCredentials.ClientID,
+		})
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
 	default:
 		return nil, errors.New(fmt.Sprintf("Unknown typeIdentity %s", azureCredentials.TypeIdentity))
 	}

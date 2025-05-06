@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Azure: read ClusterIdentity's namespace from Cluster resource
+
 ## [0.10.4] - 2025-04-23
 
 ### Fixed
