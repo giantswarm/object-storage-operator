@@ -41,7 +41,7 @@ spec:
           {{ if eq .Values.managementCluster.provider.kind "capa" -}}
           - name: AWS_SHARED_CREDENTIALS_FILE
             value: /home/.aws/credentials
-          {{ else if eq .Values.managementCluster.provider.kind "capz" }}
+          {{ else if and (eq .Values.managementCluster.provider.kind "capz") .Values.managementCluster.useAzureWorkloadIdentities }}
           - name: AZURE_FEDERATED_TOKEN_FILE
             value: /var/run/secrets/azure/tokens/azure-identity-token
           {{- end }}
@@ -68,7 +68,7 @@ spec:
           {{ if eq .Values.managementCluster.provider.kind "capa" -}}
           - mountPath: /home/.aws
             name: credentials
-          {{ else if eq .Values.managementCluster.provider.kind "capz" -}}
+          {{ else if and (eq .Values.managementCluster.provider.kind "capz") .Values.managementCluster.useAzureWorkloadIdentities -}}
           - mountPath: /var/run/secrets/azure/tokens
             name: azure-identity-token
             readOnly: true
@@ -81,7 +81,7 @@ spec:
       - name: credentials
         secret:
           secretName: {{ include "resource.default.name" . }}-aws-credentials
-      {{ else if eq .Values.managementCluster.provider.kind "capz" -}}
+      {{ else if and (eq .Values.managementCluster.provider.kind "capz") .Values.managementCluster.useAzureWorkloadIdentities -}}
       - name: azure-identity-token
         projected:
           defaultMode: 420
