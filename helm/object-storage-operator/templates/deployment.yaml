@@ -37,14 +37,15 @@ spec:
           - --management-cluster-name={{ .Values.managementCluster.name  }}
           - --management-cluster-provider={{ .Values.managementCluster.provider.kind  }}
           - --management-cluster-region={{ .Values.managementCluster.region  }}
+        {{ if eq .Values.managementCluster.provider.kind "capa" -}}
         env:
-          {{ if eq .Values.managementCluster.provider.kind "capa" -}}
           - name: AWS_SHARED_CREDENTIALS_FILE
             value: /home/.aws/credentials
-          {{ else if and (eq .Values.managementCluster.provider.kind "capz") .Values.managementCluster.useAzureWorkloadIdentities }}
+        {{ else if and (eq .Values.managementCluster.provider.kind "capz") .Values.managementCluster.useAzureWorkloadIdentities }}
+        env:
           - name: AZURE_FEDERATED_TOKEN_FILE
             value: /var/run/secrets/azure/tokens/azure-identity-token
-          {{- end }}
+        {{- end }}
         livenessProbe:
           httpGet:
             path: /healthz
@@ -64,24 +65,26 @@ spec:
           {{- end }}
         resources:
           {{- .Values.resources | toYaml | nindent 10 }}
+        {{ if eq .Values.managementCluster.provider.kind "capa" -}}
         volumeMounts:
-          {{ if eq .Values.managementCluster.provider.kind "capa" -}}
           - mountPath: /home/.aws
             name: credentials
-          {{ else if and (eq .Values.managementCluster.provider.kind "capz") .Values.managementCluster.useAzureWorkloadIdentities -}}
+        {{ else if and (eq .Values.managementCluster.provider.kind "capz") .Values.managementCluster.useAzureWorkloadIdentities -}}
+        volumeMounts:
           - mountPath: /var/run/secrets/azure/tokens
             name: azure-identity-token
             readOnly: true
-          {{- end }}
+        {{- end }}
       {{ if eq .Values.managementCluster.provider.kind "capz" -}}
       hostNetwork: true
       {{- end }}
-      volumes:
       {{ if eq .Values.managementCluster.provider.kind "capa" -}}
+      volumes:
       - name: credentials
         secret:
           secretName: {{ include "resource.default.name" . }}-aws-credentials
       {{ else if and (eq .Values.managementCluster.provider.kind "capz") .Values.managementCluster.useAzureWorkloadIdentities -}}
+      volumes:
       - name: azure-identity-token
         projected:
           defaultMode: 420
