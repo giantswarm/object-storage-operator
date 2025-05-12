@@ -41,6 +41,10 @@ spec:
         env:
           - name: AWS_SHARED_CREDENTIALS_FILE
             value: /home/.aws/credentials
+        {{ else if and (eq .Values.managementCluster.provider.kind "capz") .Values.managementCluster.useAzureWorkloadIdentities }}
+        env:
+          - name: AZURE_FEDERATED_TOKEN_FILE
+            value: /var/run/secrets/azure/tokens/azure-identity-token
         {{- end }}
         livenessProbe:
           httpGet:
@@ -65,6 +69,11 @@ spec:
         volumeMounts:
           - mountPath: /home/.aws
             name: credentials
+        {{ else if and (eq .Values.managementCluster.provider.kind "capz") .Values.managementCluster.useAzureWorkloadIdentities -}}
+        volumeMounts:
+          - mountPath: /var/run/secrets/azure/tokens
+            name: azure-identity-token
+            readOnly: true
         {{- end }}
       {{ if eq .Values.managementCluster.provider.kind "capz" -}}
       hostNetwork: true
@@ -74,4 +83,14 @@ spec:
       - name: credentials
         secret:
           secretName: {{ include "resource.default.name" . }}-aws-credentials
+      {{ else if and (eq .Values.managementCluster.provider.kind "capz") .Values.managementCluster.useAzureWorkloadIdentities -}}
+      volumes:
+      - name: azure-identity-token
+        projected:
+          defaultMode: 420
+          sources:
+          - serviceAccountToken:
+              audience: api://AzureADTokenExchange
+              expirationSeconds: 3600
+              path: azure-identity-token
       {{- end -}}
