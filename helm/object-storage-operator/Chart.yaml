@@ -3,7 +3,7 @@ name: object-storage-operator
 description: The object-storage-operator manages object storage on CAPI management clusters.
 home: https://github.com/giantswarm/object-storage-operator
 icon: https://s.giantswarm.io/app-icons/giantswarm/1/light.svg
-version: 0.10.4
+version: 0.11.0
 appVersion: 0.0.1
 annotations:
   application.giantswarm.io/team: "atlas"
