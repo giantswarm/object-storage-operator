@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Added hardcoded Trust Policy for `grafana-postgresql-recovery-test` service account in AWS IAM file.
+
 ## [0.11.0] - 2025-05-12
 
 ### Fixed

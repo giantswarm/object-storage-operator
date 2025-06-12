@@ -82,6 +82,44 @@ const trustIdentityPolicy = `{
 	]
 }`
 
+type GrafanaTrustIdentityPolicyData struct {
+	AccountId               string
+	AWSDomain               string
+	CloudFrontDomain        string
+	ServiceAccountName      string
+	ServiceAccountNamespace string
+}
+
+const GrafanaTrustIdentityPolicy = `{
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Effect": "Allow",
+			"Principal": {
+				"Federated": "arn:{{ $.AWSDomain }}:iam::{{ $.AccountId }}:oidc-provider/{{ $.CloudFrontDomain }}"
+			},
+			"Action": "sts:AssumeRoleWithWebIdentity",
+			"Condition": {
+				"StringEquals": {
+					"{{ $.CloudFrontDomain }}:sub": "system:serviceaccount:{{ $.ServiceAccountNamespace }}:{{ $.ServiceAccountName }}"
+				}
+			}
+		},
+		{
+			"Effect": "Allow",
+			"Principal": {
+				"Federated": "arn:{{ $.AWSDomain }}:iam::{{ $.AccountId }}:oidc-provider/{{ $.CloudFrontDomain }}"
+			},
+			"Action": "sts:AssumeRoleWithWebIdentity",
+			"Condition": {
+				"StringEquals": {
+					"{{ $.CloudFrontDomain }}:sub": "system:serviceaccount:monitoring:grafana-postgresql-recovery-test"
+				}
+			}
+		}
+	]
+}`
+
 type BucketPolicyData struct {
 	AWSDomain  string
 	BucketName string
