@@ -139,8 +139,8 @@ github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd h1:TRLaZ9cD/w
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/reflect2 v1.0.2 h1:xBagoLtFs94CBntxluKeaWgTMpvLxC4ur3nMaC9Gz0M=
 github.com/modern-go/reflect2 v1.0.2/go.mod h1:yWuevngMOJpCy52FWWMvUC8ws7m/LJsjYzDa0/r8luk=
-github.com/mrz1836/go-sanitize v1.3.5 h1:FPvYD1Q6cqAaOY97fx77TYhdlwWegDl1gab0toAbnv4=
-github.com/mrz1836/go-sanitize v1.3.5/go.mod h1:w3j9KyYxbIGwzNKaMvTXpz2LW8YrOHkrXKHRXVeL07I=
+github.com/mrz1836/go-sanitize v1.3.6 h1:eho2D0R7HV1eEp2SyHI6O4icZuel2FEK0EGWgmAhalk=
+github.com/mrz1836/go-sanitize v1.3.6/go.mod h1:w3j9KyYxbIGwzNKaMvTXpz2LW8YrOHkrXKHRXVeL07I=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq1c1nUAm88MOHcQC9l5mIlSMApZMrHA=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/onsi/ginkgo/v2 v2.23.4 h1:ktYTpKJAVZnDT4VjxSbiBenUjmlL/5QkBEocaWXiQus=
