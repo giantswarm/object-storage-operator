@@ -8,7 +8,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/privatedns/armprivatedns"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage"
 	"github.com/go-logr/logr"
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -115,7 +114,7 @@ func (s AzureObjectStorageAdapter) isManagementClusterPrivate(ctx context.Contex
 
 	err := yaml.Unmarshal([]byte(configMap.Data["values"]), &networkingConfig)
 	if err != nil {
-		return false, errors.WithStack(err)
+		return false, fmt.Errorf("failed to unmarshal network config for cluster %s: %w", s.cluster.GetName(), err)
 	}
 
 	return networkingConfig.Global != nil &&
@@ -136,33 +135,33 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 
 	isPrivateManagementCluster, err := s.isManagementClusterPrivate(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to check if management cluster is private for bucket %s: %w", bucket.Spec.Name, err)
 	}
 
 	if err := s.upsertStorageAccount(ctx, bucket, storageAccountName, isPrivateManagementCluster); err != nil {
-		return err
+		return fmt.Errorf("failed to upsert storage account %s for bucket %s: %w", storageAccountName, bucket.Spec.Name, err)
 	}
 
 	if err := s.upsertContainer(ctx, bucket, storageAccountName); err != nil {
-		return err
+		return fmt.Errorf("failed to upsert container for bucket %s in storage account %s: %w", bucket.Spec.Name, storageAccountName, err)
 	}
 
 	if isPrivateManagementCluster {
 		if _, err := s.upsertPrivateZone(ctx, bucket); err != nil {
-			return err
+			return fmt.Errorf("failed to upsert private zone for bucket %s: %w", bucket.Spec.Name, err)
 		}
 
 		if _, err := s.upsertVirtualNetworkLink(ctx, bucket); err != nil {
-			return err
+			return fmt.Errorf("failed to upsert virtual network link for bucket %s: %w", bucket.Spec.Name, err)
 		}
 
 		privateEndpoint, err := s.upsertPrivateEndpoint(ctx, bucket, storageAccountName)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to upsert private endpoint for bucket %s in storage account %s: %w", bucket.Spec.Name, storageAccountName, err)
 		}
 
 		if _, err = s.upsertPrivateEndpointARecords(ctx, bucket, privateEndpoint, storageAccountName); err != nil {
-			return err
+			return fmt.Errorf("failed to upsert private endpoint A records for bucket %s: %w", bucket.Spec.Name, err)
 		}
 	}
 
@@ -208,7 +207,7 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 	})
 
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create or update secret %s for bucket %s: %w", bucket.Spec.Name, bucket.Spec.Name, err)
 	}
 
 	s.logger.Info(fmt.Sprintf("upserted secret %s", bucket.Spec.Name))
@@ -227,7 +226,7 @@ func (s AzureObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1a
 	storageAccountName := sanitizeStorageAccountName(bucket.Spec.Name)
 
 	if err := s.deleteStorageAccount(ctx, bucket, storageAccountName); err != nil {
-		return err
+		return fmt.Errorf("failed to delete storage account %s for bucket %s: %w", storageAccountName, bucket.Spec.Name, err)
 	}
 
 	// We delete the Azure Credentials secret
@@ -240,22 +239,19 @@ func (s AzureObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1a
 		},
 		&secret)
 	if err != nil {
-		s.logger.Error(err, fmt.Sprintf("unable to retrieve secret %s", bucket.Spec.Name))
-		return err
+		return fmt.Errorf("failed to get secret %s for bucket %s: %w", bucket.Spec.Name, bucket.Spec.Name, err)
 	}
 	// We remove the finalizer to allow the secret to be deleted
 	originalSecret := secret.DeepCopy()
 	controllerutil.RemoveFinalizer(&secret, v1alpha1.AzureSecretFinalizer)
 	err = s.client.Patch(ctx, &secret, client.MergeFrom(originalSecret))
 	if err != nil {
-		s.logger.Error(err, fmt.Sprintf("unable to remove the finalizer in the secret %s", bucket.Spec.Name))
-		return err
+		return fmt.Errorf("failed to remove finalizer from secret %s for bucket %s: %w", bucket.Spec.Name, bucket.Spec.Name, err)
 	}
 	// We delete the secret
 	err = s.client.Delete(ctx, &secret)
 	if err != nil {
-		s.logger.Error(err, fmt.Sprintf("unable to delete secret %s", bucket.Spec.Name))
-		return err
+		return fmt.Errorf("failed to delete secret %s for bucket %s: %w", bucket.Spec.Name, bucket.Spec.Name, err)
 	}
 	s.logger.Info(fmt.Sprintf("deleted secret %s", bucket.Spec.Name))
 

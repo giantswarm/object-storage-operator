@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Comprehensive error management improvements**: Migrated from `pkg/errors` to standard library errors and significantly improved error message consistency across the entire codebase:
+  - Replaced all `github.com/pkg/errors` usage with standard `fmt.Errorf()` and `%w` verb for error wrapping
+  - Removed stack trace logging and merged `logger.Error` + `return err` patterns into single `return fmt.Errorf()` calls
+  - Standardized error patterns for consistent debugging experience across all components
+
 ## [0.11.0] - 2025-05-12
 
 ### Fixed

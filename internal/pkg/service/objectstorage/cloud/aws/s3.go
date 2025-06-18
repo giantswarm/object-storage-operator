@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"text/template"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -67,7 +68,10 @@ func (s S3ObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1alph
 	}
 
 	_, err := s.s3Client.CreateBucket(ctx, &createBucketInput)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to create S3 bucket %s in region %s: %w", bucket.Spec.Name, s.cluster.GetRegion(), err)
+	}
+	return nil
 }
 
 // UpdateBucket does nothing as we cannot update an s3 bucket
@@ -84,7 +88,7 @@ func (s S3ObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1alph
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to list objects in S3 bucket %s for deletion: %w", bucket.Spec.Name, err)
 		}
 
 		var objects []types.ObjectIdentifier
@@ -102,8 +106,7 @@ func (s S3ObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1alph
 				},
 			})
 			if err != nil {
-				return err
-
+				return fmt.Errorf("failed to delete objects from S3 bucket %s: %w", bucket.Spec.Name, err)
 			}
 		}
 	}
@@ -112,7 +115,10 @@ func (s S3ObjectStorageAdapter) DeleteBucket(ctx context.Context, bucket *v1alph
 	_, err := s.s3Client.DeleteBucket(ctx, &s3.DeleteBucketInput{
 		Bucket: aws.String(bucket.Spec.Name),
 	})
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to delete S3 bucket %s: %w", bucket.Spec.Name, err)
+	}
+	return nil
 }
 
 func (s S3ObjectStorageAdapter) ConfigureBucket(ctx context.Context, bucket *v1alpha1.Bucket) error {
@@ -120,17 +126,20 @@ func (s S3ObjectStorageAdapter) ConfigureBucket(ctx context.Context, bucket *v1a
 	// If expiration is not set, we remove all lifecycle rules
 	err = s.setLifecycleRules(ctx, bucket)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to set lifecycle rules for S3 bucket %s: %w", bucket.Spec.Name, err)
 	}
 
 	// Set the bucket policy (enforce encryption in transit)
 	err = s.setBucketPolicy(ctx, bucket)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to set bucket policy for S3 bucket %s: %w", bucket.Spec.Name, err)
 	}
 
 	err = s.setTags(ctx, bucket)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to set tags for S3 bucket %s: %w", bucket.Spec.Name, err)
+	}
+	return nil
 }
 
 func (s S3ObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket *v1alpha1.Bucket) error {
@@ -156,13 +165,19 @@ func (s S3ObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket *v
 			LifecycleConfiguration: &lifecycleConfiguration,
 		}
 		_, err := s.s3Client.PutBucketLifecycleConfiguration(ctx, input)
-		return err
+		if err != nil {
+			return fmt.Errorf("failed to put lifecycle configuration for S3 bucket %s: %w", bucket.Spec.Name, err)
+		}
+		return nil
 	}
 
 	_, err := s.s3Client.DeleteBucketLifecycle(ctx, &s3.DeleteBucketLifecycleInput{
 		Bucket: aws.String(bucket.Spec.Name),
 	})
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to delete lifecycle configuration for S3 bucket %s: %w", bucket.Spec.Name, err)
+	}
+	return nil
 }
 
 func (s S3ObjectStorageAdapter) setBucketPolicy(ctx context.Context, bucket *v1alpha1.Bucket) error {
@@ -172,13 +187,16 @@ func (s S3ObjectStorageAdapter) setBucketPolicy(ctx context.Context, bucket *v1a
 		BucketName: bucket.Spec.Name,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to execute bucket policy template for S3 bucket %s: %w", bucket.Spec.Name, err)
 	}
 	_, err = s.s3Client.PutBucketPolicy(ctx, &s3.PutBucketPolicyInput{
 		Bucket: aws.String(bucket.Spec.Name),
 		Policy: aws.String(policy.String()),
 	})
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to put bucket policy for S3 bucket %s: %w", bucket.Spec.Name, err)
+	}
+	return nil
 }
 
 func (s S3ObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1.Bucket) error {
@@ -205,5 +223,8 @@ func (s S3ObjectStorageAdapter) setTags(ctx context.Context, bucket *v1alpha1.Bu
 			TagSet: tags,
 		},
 	})
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to put tags for S3 bucket %s: %w", bucket.Spec.Name, err)
+	}
+	return nil
 }
