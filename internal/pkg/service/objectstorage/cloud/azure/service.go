@@ -10,7 +10,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/privatedns/armprivatedns"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage"
 	"github.com/go-logr/logr"
-	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/giantswarm/object-storage-operator/internal/pkg/cluster"
@@ -30,7 +29,7 @@ func (s AzureObjectStorageService) NewObjectStorageService(ctx context.Context, 
 
 	azureCredentials, ok := cluster.GetCredentials().(AzureCredentials)
 	if !ok {
-		return nil, errors.New("Impossible to cast cluster credentials into Azure cluster credentials")
+		return nil, fmt.Errorf("failed to cast cluster credentials to Azure credentials for cluster %s", cluster.GetName())
 	}
 	switch azureCredentials.TypeIdentity {
 	case "UserAssignedMSI":
@@ -38,7 +37,7 @@ func (s AzureObjectStorageService) NewObjectStorageService(ctx context.Context, 
 			ID: azidentity.ClientID(azureCredentials.ClientID),
 		})
 		if err != nil {
-			return nil, errors.WithStack(err)
+			return nil, fmt.Errorf("failed to create managed identity credential for cluster %s with client ID %s: %w", cluster.GetName(), azureCredentials.ClientID, err)
 		}
 	case "ManualServicePrincipal":
 		cred, err = azidentity.NewClientSecretCredential(
@@ -47,7 +46,7 @@ func (s AzureObjectStorageService) NewObjectStorageService(ctx context.Context, 
 			string(azureCredentials.SecretRef.Data[ClientSecretKeyName]),
 			nil)
 		if err != nil {
-			return nil, errors.WithStack(err)
+			return nil, fmt.Errorf("failed to create client secret credential for cluster %s with tenant ID %s: %w", cluster.GetName(), azureCredentials.TenantID, err)
 		}
 	case "WorkloadIdentity":
 		cred, err = azidentity.NewWorkloadIdentityCredential(&azidentity.WorkloadIdentityCredentialOptions{
@@ -55,33 +54,33 @@ func (s AzureObjectStorageService) NewObjectStorageService(ctx context.Context, 
 			ClientID: azureCredentials.ClientID,
 		})
 		if err != nil {
-			return nil, errors.WithStack(err)
+			return nil, fmt.Errorf("failed to create workload identity credential for cluster %s with tenant ID %s: %w", cluster.GetName(), azureCredentials.TenantID, err)
 		}
 	default:
-		return nil, errors.New(fmt.Sprintf("Unknown typeIdentity %s", azureCredentials.TypeIdentity))
+		return nil, fmt.Errorf("unknown identity type %s for cluster %s", azureCredentials.TypeIdentity, cluster.GetName())
 	}
 
 	var storageClientFactory *armstorage.ClientFactory
 	storageClientFactory, err = armstorage.NewClientFactory(azureCredentials.SubscriptionID, cred, nil)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, fmt.Errorf("failed to create storage client factory for cluster %s with subscription ID %s: %w", cluster.GetName(), azureCredentials.SubscriptionID, err)
 	}
 
 	var networkClientFactory *armnetwork.ClientFactory
 	networkClientFactory, err = armnetwork.NewClientFactory(azureCredentials.SubscriptionID, cred, nil)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, fmt.Errorf("failed to create network client factory for cluster %s with subscription ID %s: %w", cluster.GetName(), azureCredentials.SubscriptionID, err)
 	}
 
 	var privateZonesClientFactory *armprivatedns.ClientFactory
 	privateZonesClientFactory, err = armprivatedns.NewClientFactory(azureCredentials.SubscriptionID, cred, nil)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, fmt.Errorf("failed to create private DNS client factory for cluster %s with subscription ID %s: %w", cluster.GetName(), azureCredentials.SubscriptionID, err)
 	}
 
 	azurecluster, ok := cluster.(AzureCluster)
 	if !ok {
-		return nil, errors.New("Impossible to cast cluster into Azure cluster")
+		return nil, fmt.Errorf("failed to cast cluster to Azure cluster for cluster %s", cluster.GetName())
 	}
 	return NewAzureStorageService(
 		storageClientFactory.NewAccountsClient(),
