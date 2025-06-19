@@ -18,8 +18,8 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/pkg/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -57,27 +57,31 @@ func (r BucketReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	bucket := &v1alpha1.Bucket{}
 	err := r.Get(ctx, req.NamespacedName, bucket)
 	if err != nil {
-		return ctrl.Result{}, errors.WithStack(client.IgnoreNotFound(err))
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	logger.WithValues("bucket", bucket.Spec.Name)
 
 	cluster, err := r.GetCluster(ctx)
 	if err != nil {
-		return ctrl.Result{}, errors.WithStack(err)
+		return ctrl.Result{}, fmt.Errorf("failed to get cluster for bucket %s: %w", bucket.Spec.Name, err)
 	}
 	objectStorageService, err := r.NewObjectStorageService(ctx, logger, cluster, r.Client)
 	if err != nil {
-		return ctrl.Result{}, errors.WithStack(err)
+		return ctrl.Result{}, fmt.Errorf("failed to create object storage service for bucket %s: %w", bucket.Spec.Name, err)
 	}
 	accessRoleService, err := r.NewAccessRoleService(ctx, logger, cluster)
 	if err != nil {
-		return ctrl.Result{}, errors.WithStack(err)
+		return ctrl.Result{}, fmt.Errorf("failed to create access role service for bucket %s: %w", bucket.Spec.Name, err)
 	}
 
 	// Handle deleted clusters
 	if !bucket.DeletionTimestamp.IsZero() {
-		return ctrl.Result{}, r.reconcileDelete(ctx, objectStorageService, accessRoleService, bucket)
+		err := r.reconcileDelete(ctx, objectStorageService, accessRoleService, bucket)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to delete bucket %s: %w", bucket.Spec.Name, err)
+		}
+		return ctrl.Result{}, nil
 	}
 
 	// Handle non-deleted clusters
@@ -93,28 +97,25 @@ func (r BucketReconciler) reconcileNormal(ctx context.Context, objectStorageServ
 	if controllerutil.AddFinalizer(bucket, v1alpha1.BucketFinalizer) {
 		// Register the finalizer immediately to avoid orphaning AWS resources on delete
 		if err := r.Patch(ctx, bucket, client.MergeFrom(originalBucket)); err != nil {
-			return ctrl.Result{}, errors.WithStack(err)
+			return ctrl.Result{}, fmt.Errorf("failed to add finalizer to bucket %s: %w", bucket.Spec.Name, err)
 		}
 	}
 
 	logger.Info("Checking if bucket exists")
 	exists, err := objectStorageService.ExistsBucket(ctx, bucket)
 	if err != nil {
-		logger.Error(err, "Either you don't have access to the bucket or another error occurred")
-		return ctrl.Result{}, errors.WithStack(err)
+		return ctrl.Result{}, fmt.Errorf("failed to check if bucket %s exists: %w", bucket.Spec.Name, err)
 	} else if !exists {
 		logger.Info("Bucket is available, creating")
 		err = objectStorageService.CreateBucket(ctx, bucket)
 		if err != nil {
-			logger.Error(err, "Bucket could not be created")
-			return ctrl.Result{}, errors.WithStack(err)
+			return ctrl.Result{}, fmt.Errorf("failed to create bucket %s: %w", bucket.Spec.Name, err)
 		}
 	} else {
 		logger.Info("Bucket exists and you already own it, let's update it")
 		err = objectStorageService.UpdateBucket(ctx, bucket)
 		if err != nil {
-			logger.Error(err, "Bucket could not be updated")
-			return ctrl.Result{}, errors.WithStack(err)
+			return ctrl.Result{}, fmt.Errorf("failed to update bucket %s: %w", bucket.Spec.Name, err)
 		}
 	}
 
@@ -122,8 +123,7 @@ func (r BucketReconciler) reconcileNormal(ctx context.Context, objectStorageServ
 	// If expiration is not set, we remove all lifecycle rules
 	err = objectStorageService.ConfigureBucket(ctx, bucket)
 	if err != nil {
-		logger.Error(err, "Bucket could not be configured")
-		return ctrl.Result{}, errors.WithStack(err)
+		return ctrl.Result{}, fmt.Errorf("failed to configure bucket %s: %w", bucket.Spec.Name, err)
 	}
 
 	originalBucket = bucket.DeepCopy()
@@ -133,7 +133,7 @@ func (r BucketReconciler) reconcileNormal(ctx context.Context, objectStorageServ
 	}
 
 	if err = r.Client.Status().Patch(ctx, bucket, client.MergeFrom(originalBucket)); err != nil {
-		return ctrl.Result{}, errors.WithStack(err)
+		return ctrl.Result{}, fmt.Errorf("failed to update status for bucket %s: %w", bucket.Spec.Name, err)
 	}
 	logger.Info("Bucket ready")
 
@@ -141,7 +141,7 @@ func (r BucketReconciler) reconcileNormal(ctx context.Context, objectStorageServ
 		logger.Info("Creating bucket access role")
 		err = accessRoleService.ConfigureRole(ctx, bucket)
 		if err != nil {
-			return ctrl.Result{}, errors.WithStack(err)
+			return ctrl.Result{}, fmt.Errorf("failed to configure access role for bucket %s: %w", bucket.Spec.Name, err)
 		}
 		logger.Info("Bucket access role created")
 	}
@@ -162,8 +162,7 @@ func (r BucketReconciler) reconcileDelete(ctx context.Context, objectStorageServ
 			logger.Info("Bucket exists, deleting")
 			err = objectStorageService.DeleteBucket(ctx, bucket)
 			if err != nil {
-				logger.Error(err, "Bucket could not be deleted")
-				return errors.WithStack(err)
+				return fmt.Errorf("failed to delete bucket %s: %w", bucket.Spec.Name, err)
 			}
 			logger.Info("Bucket deleted")
 
@@ -171,7 +170,7 @@ func (r BucketReconciler) reconcileDelete(ctx context.Context, objectStorageServ
 				logger.Info("Deleting bucket access role")
 				err = accessRoleService.DeleteRole(ctx, bucket)
 				if err != nil {
-					return errors.WithStack(err)
+					return fmt.Errorf("failed to delete access role for bucket %s: %w", bucket.Spec.Name, err)
 				}
 				logger.Info("Bucket access role deleted")
 			} else {

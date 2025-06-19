@@ -39,7 +39,7 @@ func (s AzureObjectStorageAdapter) existsContainer(ctx context.Context, bucket *
 func (s AzureObjectStorageAdapter) upsertContainer(ctx context.Context, bucket *v1alpha1.Bucket, storageAccountName string) error {
 	existsContainer, err := s.existsContainer(ctx, bucket, storageAccountName)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to check if container %s exists in storage account %s: %w", bucket.Spec.Name, storageAccountName, err)
 	}
 	if !existsContainer {
 		// Create Storage Container
@@ -57,8 +57,7 @@ func (s AzureObjectStorageAdapter) upsertContainer(ctx context.Context, bucket *
 			nil,
 		)
 		if err != nil {
-			s.logger.Error(err, fmt.Sprintf("failed to create storage container %s", bucket.Spec.Name))
-			return err
+			return fmt.Errorf("failed to create storage container %s in storage account %s: %w", bucket.Spec.Name, storageAccountName, err)
 		}
 		s.logger.Info(fmt.Sprintf("storage container %s created", bucket.Spec.Name))
 	} else {
@@ -75,8 +74,7 @@ func (s AzureObjectStorageAdapter) upsertContainer(ctx context.Context, bucket *
 			nil,
 		)
 		if err != nil {
-			s.logger.Error(err, fmt.Sprintf("failed to update storage container %s", bucket.Spec.Name))
-			return err
+			return fmt.Errorf("failed to update storage container %s in storage account %s: %w", bucket.Spec.Name, storageAccountName, err)
 		}
 		s.logger.Info(fmt.Sprintf("storage container %s updated", bucket.Spec.Name))
 	}

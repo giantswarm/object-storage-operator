@@ -3,6 +3,7 @@ package aws
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"text/template"
@@ -12,7 +13,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/aws/smithy-go"
 	"github.com/go-logr/logr"
-	"github.com/pkg/errors"
 
 	"github.com/giantswarm/object-storage-operator/api/v1alpha1"
 )
@@ -58,11 +58,10 @@ func (s IAMAccessRoleServiceAdapter) getRole(ctx context.Context, roleName strin
 				s.logger.Info("IAM role does not exist")
 				return nil, nil
 			default:
-				s.logger.Error(err, "Failed to fetch IAM Role")
-				return nil, errors.WithStack(err)
+				return nil, fmt.Errorf("failed to fetch IAM role %s: %w", roleName, err)
 			}
 		}
-		return nil, errors.WithStack(err)
+		return nil, fmt.Errorf("failed to get IAM role %s: %w", roleName, err)
 	}
 	return output.Role, nil
 }
@@ -108,7 +107,7 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 		ServiceAccountNamespace: bucket.Spec.AccessRole.ServiceAccountNamespace,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to execute trust identity policy template for role %s: %w", roleName, err)
 	}
 
 	if role == nil {
@@ -119,7 +118,7 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 			Tags:                     tags,
 		})
 		if err != nil {
-			return errors.WithStack(err)
+			return fmt.Errorf("failed to create IAM role %s: %w", roleName, err)
 		}
 		s.logger.Info("IAM Role created")
 	} else {
@@ -128,7 +127,7 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 			PolicyDocument: aws.String(trustPolicy.String()),
 		})
 		if err != nil {
-			return errors.WithStack(err)
+			return fmt.Errorf("failed to update assume role policy for IAM role %s: %w", roleName, err)
 		}
 
 		// Update tags (need to untag with existing keys then retag)
@@ -142,14 +141,14 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 				TagKeys:  tagKeys,
 			})
 			if err != nil {
-				return errors.WithStack(err)
+				return fmt.Errorf("failed to untag IAM role %s: %w", roleName, err)
 			}
 			_, err = s.iamClient.TagRole(ctx, &iam.TagRoleInput{
 				RoleName: aws.String(roleName),
 				Tags:     tags,
 			})
 			if err != nil {
-				return errors.WithStack(err)
+				return fmt.Errorf("failed to tag IAM role %s: %w", roleName, err)
 			}
 		}
 	}
@@ -163,7 +162,7 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 
 	err = s.rolePolicy.Execute(&rolePolicy, data)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to execute role policy template for role %s: %w", roleName, err)
 	}
 
 	_, err = s.iamClient.PutRolePolicy(ctx, &iam.PutRolePolicyInput{
@@ -172,7 +171,7 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 		PolicyDocument: aws.String(rolePolicy.String()),
 	})
 	if err != nil {
-		return errors.WithStack(err)
+		return fmt.Errorf("failed to put IAM role policy for role %s: %w", roleName, err)
 	}
 	return nil
 }
@@ -181,7 +180,7 @@ func (s IAMAccessRoleServiceAdapter) DeleteRole(ctx context.Context, bucket *v1a
 	roleName := bucket.Spec.AccessRole.RoleName
 	role, err := s.getRole(ctx, roleName)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get IAM role %s for deletion: %w", roleName, err)
 	}
 
 	if role == nil {
@@ -191,7 +190,7 @@ func (s IAMAccessRoleServiceAdapter) DeleteRole(ctx context.Context, bucket *v1a
 	// clean any attached policies, otherwise deletion of role will not work
 	err = s.cleanAttachedPolicies(ctx, roleName)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to clean attached policies for IAM role %s: %w", roleName, err)
 	}
 
 	_, err = s.iamClient.RemoveRoleFromInstanceProfile(ctx, &iam.RemoveRoleFromInstanceProfileInput{
@@ -205,8 +204,7 @@ func (s IAMAccessRoleServiceAdapter) DeleteRole(ctx context.Context, bucket *v1a
 			case *types.NoSuchEntityException:
 				s.logger.Info("no instance profile attached to role, skipping")
 			default:
-				s.logger.Error(err, "failed to remove role from instance profile")
-				return errors.WithStack(err)
+				return fmt.Errorf("failed to remove role %s from instance profile: %w", roleName, err)
 			}
 		}
 	}
@@ -221,8 +219,7 @@ func (s IAMAccessRoleServiceAdapter) DeleteRole(ctx context.Context, bucket *v1a
 			case *types.NoSuchEntityException:
 				s.logger.Info("no instance profile to delete, skipping")
 			default:
-				s.logger.Error(err, "failed to delete instance profile")
-				return errors.WithStack(err)
+				return fmt.Errorf("failed to delete instance profile %s: %w", roleName, err)
 			}
 		}
 	}
@@ -230,7 +227,7 @@ func (s IAMAccessRoleServiceAdapter) DeleteRole(ctx context.Context, bucket *v1a
 		RoleName: aws.String(roleName),
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to delete IAM role %s: %w", roleName, err)
 	}
 
 	return nil
@@ -242,7 +239,7 @@ func (s *IAMAccessRoleServiceAdapter) cleanAttachedPolicies(ctx context.Context,
 			RoleName: aws.String(roleName),
 		})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to list attached policies for IAM role %s: %w", roleName, err)
 		} else {
 			for _, p := range o.AttachedPolicies {
 				policy := p
@@ -253,8 +250,7 @@ func (s *IAMAccessRoleServiceAdapter) cleanAttachedPolicies(ctx context.Context,
 					RoleName:  aws.String(roleName),
 				})
 				if err != nil {
-					s.logger.Error(err, fmt.Sprintf("failed to detach policy %s", *policy.PolicyName))
-					return err
+					return fmt.Errorf("failed to detach policy %s from IAM role %s: %w", *policy.PolicyName, roleName, err)
 				}
 
 				s.logger.Info(fmt.Sprintf("detached policy %s", *policy.PolicyName))
@@ -268,8 +264,7 @@ func (s *IAMAccessRoleServiceAdapter) cleanAttachedPolicies(ctx context.Context,
 			RoleName: aws.String(roleName),
 		})
 		if err != nil {
-			s.logger.Error(err, "failed to list inline policies")
-			return err
+			return fmt.Errorf("failed to list inline policies for IAM role %s: %w", roleName, err)
 		}
 
 		for _, p := range o.PolicyNames {
@@ -280,8 +275,7 @@ func (s *IAMAccessRoleServiceAdapter) cleanAttachedPolicies(ctx context.Context,
 				PolicyName: aws.String(policy),
 			})
 			if err != nil {
-				s.logger.Error(err, fmt.Sprintf("failed to delete inline policy %s", policy))
-				return err
+				return fmt.Errorf("failed to delete inline policy %s from IAM role %s: %w", policy, roleName, err)
 			}
 			s.logger.Info(fmt.Sprintf("deleted inline policy %s", policy))
 		}
