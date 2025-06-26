@@ -111,7 +111,7 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 		IsGrafanaPostgresql:     isGrafanaPostgresql,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to execute trust identity policy template for role %s: %w", roleName, err)
 	}
 
 	if role == nil {
