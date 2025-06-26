@@ -19,13 +19,12 @@ import (
 )
 
 type IAMAccessRoleServiceAdapter struct {
-	iamClient                  *iam.Client
-	logger                     logr.Logger
-	accountId                  string
-	cluster                    AWSCluster
-	trustIdentityPolicy        *template.Template
-	grafanaTrustIdentityPolicy *template.Template
-	rolePolicy                 *template.Template
+	iamClient           *iam.Client
+	logger              logr.Logger
+	accountId           string
+	cluster             AWSCluster
+	trustIdentityPolicy *template.Template
+	rolePolicy          *template.Template
 }
 
 func NewIamService(iamClient *iam.Client, logger logr.Logger, accountId string, cluster AWSCluster) IAMAccessRoleServiceAdapter {
@@ -102,28 +101,18 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 	}
 
 	var trustPolicy bytes.Buffer
-	if strings.Contains(bucket.Spec.AccessRole.ServiceAccountName, "grafana-postgresql") {
-		err = s.grafanaTrustIdentityPolicy.Execute(&trustPolicy, GrafanaTrustIdentityPolicyData{
-			AccountId:               s.accountId,
-			AWSDomain:               awsDomain(s.cluster.Region),
-			CloudFrontDomain:        s.irsaDomain(),
-			ServiceAccountName:      bucket.Spec.AccessRole.ServiceAccountName,
-			ServiceAccountNamespace: bucket.Spec.AccessRole.ServiceAccountNamespace,
-		})
-		if err != nil {
-			return err
-		}
-	} else {
-		err = s.trustIdentityPolicy.Execute(&trustPolicy, TrustIdentityPolicyData{
-			AccountId:               s.accountId,
-			AWSDomain:               awsDomain(s.cluster.Region),
-			CloudFrontDomain:        s.irsaDomain(),
-			ServiceAccountName:      bucket.Spec.AccessRole.ServiceAccountName,
-			ServiceAccountNamespace: bucket.Spec.AccessRole.ServiceAccountNamespace,
-		})
-		if err != nil {
-			return err
-		}
+	isGrafanaPostgresql := strings.Contains(bucket.Spec.AccessRole.ServiceAccountName, "grafana-postgresql")
+
+	err = s.trustIdentityPolicy.Execute(&trustPolicy, TrustIdentityPolicyData{
+		AccountId:               s.accountId,
+		AWSDomain:               awsDomain(s.cluster.Region),
+		CloudFrontDomain:        s.irsaDomain(),
+		ServiceAccountName:      bucket.Spec.AccessRole.ServiceAccountName,
+		ServiceAccountNamespace: bucket.Spec.AccessRole.ServiceAccountNamespace,
+		IsGrafanaPostgresql:     isGrafanaPostgresql,
+	})
+	if err != nil {
+		return err
 	}
 
 	if role == nil {

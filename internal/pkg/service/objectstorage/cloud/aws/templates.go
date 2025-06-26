@@ -62,6 +62,7 @@ type TrustIdentityPolicyData struct {
 	CloudFrontDomain        string
 	ServiceAccountName      string
 	ServiceAccountNamespace string
+	IsGrafanaPostgresql     bool
 }
 
 const trustIdentityPolicy = `{
@@ -78,33 +79,7 @@ const trustIdentityPolicy = `{
 					"{{ $.CloudFrontDomain }}:sub": "system:serviceaccount:{{ $.ServiceAccountNamespace }}:{{ $.ServiceAccountName }}"
 				}
 			}
-		}
-	]
-}`
-
-type GrafanaTrustIdentityPolicyData struct {
-	AccountId               string
-	AWSDomain               string
-	CloudFrontDomain        string
-	ServiceAccountName      string
-	ServiceAccountNamespace string
-}
-
-const GrafanaTrustIdentityPolicy = `{
-	"Version": "2012-10-17",
-	"Statement": [
-		{
-			"Effect": "Allow",
-			"Principal": {
-				"Federated": "arn:{{ $.AWSDomain }}:iam::{{ $.AccountId }}:oidc-provider/{{ $.CloudFrontDomain }}"
-			},
-			"Action": "sts:AssumeRoleWithWebIdentity",
-			"Condition": {
-				"StringEquals": {
-					"{{ $.CloudFrontDomain }}:sub": "system:serviceaccount:{{ $.ServiceAccountNamespace }}:{{ $.ServiceAccountName }}"
-				}
-			}
-		},
+		}{{ if .IsGrafanaPostgresql }},
 		{
 			"Effect": "Allow",
 			"Principal": {
@@ -116,7 +91,7 @@ const GrafanaTrustIdentityPolicy = `{
 					"{{ $.CloudFrontDomain }}:sub": "system:serviceaccount:monitoring:grafana-postgresql-recovery-test"
 				}
 			}
-		}
+		}{{ end }}
 	]
 }`
 
