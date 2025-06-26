@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Added hardcoded Trust Policy for `grafana-postgresql-recovery-test` service account in AWS IAM file.
 - **Comprehensive error management improvements**: Migrated from `pkg/errors` to standard library errors and significantly improved error message consistency across the entire codebase:
   - Replaced all `github.com/pkg/errors` usage with standard `fmt.Errorf()` and `%w` verb for error wrapping
   - Removed stack trace logging and merged `logger.Error` + `return err` patterns into single `return fmt.Errorf()` calls

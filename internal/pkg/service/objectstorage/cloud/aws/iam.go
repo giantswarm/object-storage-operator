@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"text/template"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -99,12 +100,15 @@ func (s IAMAccessRoleServiceAdapter) ConfigureRole(ctx context.Context, bucket *
 	}
 
 	var trustPolicy bytes.Buffer
+	isGrafanaPostgresql := strings.Contains(bucket.Spec.AccessRole.ServiceAccountName, "grafana-postgresql")
+
 	err = s.trustIdentityPolicy.Execute(&trustPolicy, TrustIdentityPolicyData{
 		AccountId:               s.accountId,
 		AWSDomain:               awsDomain(s.cluster.Region),
 		CloudFrontDomain:        s.irsaDomain(),
 		ServiceAccountName:      bucket.Spec.AccessRole.ServiceAccountName,
 		ServiceAccountNamespace: bucket.Spec.AccessRole.ServiceAccountNamespace,
+		IsGrafanaPostgresql:     isGrafanaPostgresql,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to execute trust identity policy template for role %s: %w", roleName, err)
