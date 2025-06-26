@@ -19,7 +19,7 @@ func (s AzureObjectStorageAdapter) upsertStorageAccount(ctx context.Context, buc
 	// Check if Storage Account exists on Azure
 	existsStorageAccount, err := s.existsStorageAccount(ctx, storageAccountName)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to check if storage account %s exists: %w", storageAccountName, err)
 	}
 
 	publicNetworkAccess := armstorage.PublicNetworkAccessEnabled
@@ -57,11 +57,11 @@ func (s AzureObjectStorageAdapter) upsertStorageAccount(ctx context.Context, buc
 			Tags: s.getBucketTags(bucket),
 		}, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to begin create storage account %s: %w", storageAccountName, err)
 	}
 	_, err = pollerStorageAccount.PollUntilDone(ctx, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to complete storage account %s creation: %w", storageAccountName, err)
 	}
 
 	if !existsStorageAccount {
@@ -82,8 +82,7 @@ func (s AzureObjectStorageAdapter) deleteStorageAccount(ctx context.Context, buc
 		nil,
 	)
 	if err != nil {
-		s.logger.Error(err, fmt.Sprintf("error deleting storage account %s and storage container %s", storageAccountName, bucket.Spec.Name))
-		return err
+		return fmt.Errorf("failed to delete storage account %s for bucket %s: %w", storageAccountName, bucket.Spec.Name, err)
 	}
 	s.logger.Info(fmt.Sprintf("storage account %s and storage container %s deleted", storageAccountName, bucket.Spec.Name))
 	return nil
@@ -100,7 +99,7 @@ func (s AzureObjectStorageAdapter) existsStorageAccount(ctx context.Context, sto
 		},
 		nil)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to check name availability for storage account %s: %w", storageAccountName, err)
 	}
 	return !*availability.NameAvailable, nil
 }
@@ -144,8 +143,7 @@ func (s AzureObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket
 			nil,
 		)
 		if err != nil {
-			s.logger.Error(err, fmt.Sprintf("Error creating/updating Policy Rule for Storage Account %s", storageAccountName))
-			return err
+			return fmt.Errorf("failed to create/update lifecycle policy for storage account %s: %w", storageAccountName, err)
 		}
 		return nil
 	}
@@ -166,8 +164,9 @@ func (s AzureObjectStorageAdapter) setLifecycleRules(ctx context.Context, bucket
 				return nil
 			}
 		}
+		return fmt.Errorf("failed to delete lifecycle policy for storage account %s: %w", storageAccountName, err)
 	}
-	return err
+	return nil
 }
 
 // sanitizeStorageAccountName sanitizes the given name by removing any non-alphanumeric characters and truncating it to a maximum length of 24 characters.

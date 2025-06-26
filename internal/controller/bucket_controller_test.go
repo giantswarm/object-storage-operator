@@ -2,11 +2,11 @@ package controller_test
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -113,7 +113,7 @@ var _ = Describe("Bucket Reconciler", func() {
 				})
 				It("fails", func() {
 					Expect(reconcileErr).To(HaveOccurred())
-					Expect(reconcileErr).Should(MatchError("Missing management cluster AWSCluster CR"))
+					Expect(reconcileErr).Should(MatchError("failed to get cluster for bucket my-bucket-name: Missing management cluster AWSCluster CR"))
 					var existingBucket v1alpha1.Bucket
 					_ = fakeClient.Get(ctx, bucketKey, &existingBucket)
 					Expect(existingBucket.Finalizers).To(BeEmpty())

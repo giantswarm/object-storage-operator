@@ -2,8 +2,8 @@ package azure
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -37,22 +37,19 @@ func (c AzureClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, er
 
 	cluster, err := c.getClusterCR(ctx)
 	if err != nil {
-		logger.Error(err, "Missing management cluster AzureCluster CR")
-		return nil, errors.WithStack(err)
+		return nil, fmt.Errorf("missing management cluster AzureCluster CR for cluster %s in namespace %s: %w", c.ManagementCluster.Name, c.ManagementCluster.Namespace, err)
 	}
 	clusterIdentityName, found, err := unstructured.NestedString(cluster.Object, "spec", "identityRef", "name")
 	if err != nil {
-		logger.Error(err, "Identity name is not a string")
-		return nil, errors.WithStack(err)
+		return nil, fmt.Errorf("failed to get identity name from AzureCluster %s/%s: %w", c.ManagementCluster.Namespace, c.ManagementCluster.Name, err)
 	}
 	if !found || clusterIdentityName == "" {
 		logger.Info("Missing identity, skipping")
-		return nil, errors.New("Missing management cluster identityRef")
+		return nil, fmt.Errorf("missing management cluster identityRef for cluster %s/%s", c.ManagementCluster.Namespace, c.ManagementCluster.Name)
 	}
 	clusterIdentityNamespace, found, err := unstructured.NestedString(cluster.Object, "spec", "identityRef", "namespace")
 	if err != nil {
-		logger.Error(err, "Identity namespace is not a string")
-		return nil, errors.WithStack(err)
+		return nil, fmt.Errorf("failed to get identity namespace from AzureCluster %s/%s: %w", c.ManagementCluster.Namespace, c.ManagementCluster.Name, err)
 	}
 	if !found || clusterIdentityNamespace == "" {
 		logger.Info("Missing identity namespace, using management cluster namespace")
@@ -60,13 +57,11 @@ func (c AzureClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, er
 	}
 	clusterIdentity, err := c.getClusterCRIdentity(ctx, clusterIdentityName, clusterIdentityNamespace)
 	if err != nil {
-		logger.Error(err, "Missing management cluster identity AzureClusterIdentity CR")
-		return nil, errors.WithStack(err)
+		return nil, fmt.Errorf("missing management cluster identity AzureClusterIdentity CR %s/%s for cluster %s/%s: %w", clusterIdentityNamespace, clusterIdentityName, c.ManagementCluster.Namespace, c.ManagementCluster.Name, err)
 	}
 	clusterTags, found, err := unstructured.NestedStringMap(cluster.Object, "spec", "additionalTags")
 	if err != nil {
-		logger.Error(err, "Additional tags are not a map")
-		return nil, errors.WithStack(err)
+		return nil, fmt.Errorf("failed to get additional tags from AzureCluster %s/%s: %w", c.ManagementCluster.Namespace, c.ManagementCluster.Name, err)
 	}
 	if !found || len(clusterTags) == 0 {
 		logger.Info("No cluster tags found")
@@ -74,39 +69,39 @@ func (c AzureClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, er
 	var secret = corev1.Secret{}
 	resourceGroup, found, err := unstructured.NestedString(cluster.Object, "spec", "resourceGroup")
 	if !found || err != nil {
-		return nil, errors.New("Missing or incorrect resourceGroup")
+		return nil, fmt.Errorf("missing or incorrect resourceGroup in AzureCluster %s/%s: %w", c.ManagementCluster.Namespace, c.ManagementCluster.Name, err)
 	}
 	subscriptionID, found, err := unstructured.NestedString(cluster.Object, "spec", "subscriptionID")
 	if !found || err != nil {
-		return nil, errors.New("Missing or incorrect subscriptionID")
+		return nil, fmt.Errorf("missing or incorrect subscriptionID in AzureCluster %s/%s: %w", c.ManagementCluster.Namespace, c.ManagementCluster.Name, err)
 	}
 	typeIdentity, found, err := unstructured.NestedString(clusterIdentity.Object, "spec", "type")
 	if !found || err != nil {
-		return nil, errors.New("Missing or incorrect identity type")
+		return nil, fmt.Errorf("missing or incorrect identity type in AzureClusterIdentity %s/%s: %w", clusterIdentityNamespace, clusterIdentityName, err)
 	}
 	clientID, tenantID := "", ""
 	switch typeIdentity {
 	case "UserAssignedMSI":
 		clientID, found, err = unstructured.NestedString(clusterIdentity.Object, "spec", "clientID")
 		if !found || err != nil {
-			return nil, errors.New("Missing or incorrect identity.clientID")
+			return nil, fmt.Errorf("missing or incorrect clientID in AzureClusterIdentity %s/%s: %w", clusterIdentityNamespace, clusterIdentityName, err)
 		}
 	case "ManualServicePrincipal":
 		tenantID, found, err = unstructured.NestedString(clusterIdentity.Object, "spec", "tenantID")
 		if !found || err != nil {
-			return nil, errors.New("Missing or incorrect identity.tenantID")
+			return nil, fmt.Errorf("missing or incorrect tenantID in AzureClusterIdentity %s/%s: %w", clusterIdentityNamespace, clusterIdentityName, err)
 		}
 		clientID, found, err = unstructured.NestedString(clusterIdentity.Object, "spec", "clientID")
 		if !found || err != nil {
-			return nil, errors.New("Missing or incorrect identity.clientID")
+			return nil, fmt.Errorf("missing or incorrect clientID in AzureClusterIdentity %s/%s: %w", clusterIdentityNamespace, clusterIdentityName, err)
 		}
 		clientSecretName, found, err := unstructured.NestedString(clusterIdentity.Object, "spec", "clientSecret", "name")
 		if !found || err != nil {
-			return nil, errors.New("Missing or incorrect identity.clientSecret.name")
+			return nil, fmt.Errorf("missing or incorrect clientSecret.name in AzureClusterIdentity %s/%s: %w", clusterIdentityNamespace, clusterIdentityName, err)
 		}
 		clientSecretNamespace, found, err := unstructured.NestedString(clusterIdentity.Object, "spec", "clientSecret", "namespace")
 		if !found || err != nil {
-			return nil, errors.New("Missing or incorrect identity.clientSecret.namespace")
+			return nil, fmt.Errorf("missing or incorrect clientSecret.namespace in AzureClusterIdentity %s/%s: %w", clusterIdentityNamespace, clusterIdentityName, err)
 		}
 		err = c.Client.Get(
 			ctx,
@@ -116,19 +111,19 @@ func (c AzureClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, er
 			},
 			&secret)
 		if err != nil {
-			return nil, errors.WithStack(err)
+			return nil, fmt.Errorf("failed to get client secret %s/%s for AzureClusterIdentity %s/%s: %w", clientSecretNamespace, clientSecretName, clusterIdentityNamespace, clusterIdentityName, err)
 		}
 	case "WorkloadIdentity":
 		tenantID, found, err = unstructured.NestedString(clusterIdentity.Object, "spec", "tenantID")
 		if !found || err != nil {
-			return nil, errors.New("Missing or incorrect identity.tenantID")
+			return nil, fmt.Errorf("missing or incorrect tenantID in AzureClusterIdentity %s/%s: %w", clusterIdentityNamespace, clusterIdentityName, err)
 		}
 		clientID, found, err = unstructured.NestedString(clusterIdentity.Object, "spec", "clientID")
 		if !found || err != nil {
-			return nil, errors.New("Missing or incorrect identity.clientID")
+			return nil, fmt.Errorf("missing or incorrect clientID in AzureClusterIdentity %s/%s: %w", clusterIdentityNamespace, clusterIdentityName, err)
 		}
 	default:
-		return nil, errors.Errorf("Unsupported TypeIdentity %s", typeIdentity)
+		return nil, fmt.Errorf("unsupported identity type %s in AzureClusterIdentity %s/%s", typeIdentity, clusterIdentityNamespace, clusterIdentityName)
 	}
 
 	return AzureCluster{
@@ -157,7 +152,10 @@ func (c AzureClusterGetter) getClusterCR(ctx context.Context) (*unstructured.Uns
 		Version: VersionCluster,
 	})
 	err := c.Client.Get(ctx, c.ManagementCluster.ToObjectKey(c.ManagementCluster.Name, c.ManagementCluster.Namespace), cluster)
-	return cluster, errors.WithStack(err)
+	if err != nil {
+		return cluster, fmt.Errorf("failed to get AzureCluster CR %s/%s: %w", c.ManagementCluster.Namespace, c.ManagementCluster.Name, err)
+	}
+	return cluster, nil
 }
 
 func (c AzureClusterGetter) getClusterCRIdentity(ctx context.Context, clusterIdentityName string, clusterIdentityNamespace string) (*unstructured.Unstructured, error) {
@@ -169,7 +167,10 @@ func (c AzureClusterGetter) getClusterCRIdentity(ctx context.Context, clusterIde
 	})
 
 	err := c.Client.Get(ctx, c.ManagementCluster.ToObjectKey(clusterIdentityName, clusterIdentityNamespace), clusterIdentity)
-	return clusterIdentity, errors.WithStack(err)
+	if err != nil {
+		return clusterIdentity, fmt.Errorf("failed to get AzureClusterIdentity CR %s/%s: %w", clusterIdentityNamespace, clusterIdentityName, err)
+	}
+	return clusterIdentity, nil
 }
 
 // AzureCluster implements Cluster Interface with Azure data

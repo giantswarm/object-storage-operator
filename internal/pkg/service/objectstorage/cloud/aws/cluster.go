@@ -2,8 +2,8 @@ package aws
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,38 +33,33 @@ func (c AWSClusterGetter) GetCluster(ctx context.Context) (cluster.Cluster, erro
 
 	cluster, err := c.getClusterCR(ctx)
 	if err != nil {
-		logger.Error(err, "Missing management cluster AWSCluster CR")
-		return nil, errors.WithStack(err)
+		return nil, fmt.Errorf("missing management cluster AWSCluster CR for cluster %s in namespace %s: %w", c.ManagementCluster.Name, c.ManagementCluster.Namespace, err)
 	}
 
 	clusterIdentityName, found, err := unstructured.NestedString(cluster.Object, "spec", "identityRef", "name")
 	if err != nil {
-		logger.Error(err, "Identity name is not a string")
-		return nil, errors.WithStack(err)
+		return nil, fmt.Errorf("failed to get identity name from AWSCluster %s/%s: %w", c.ManagementCluster.Namespace, c.ManagementCluster.Name, err)
 	}
 	if !found || clusterIdentityName == "" {
 		logger.Info("Missing identity, skipping")
-		return nil, errors.New("Missing management cluster identityRef")
+		return nil, fmt.Errorf("missing management cluster identityRef for cluster %s/%s", c.ManagementCluster.Namespace, c.ManagementCluster.Name)
 	}
 	clusterIdentity, err := c.getClusterCRIdentiy(ctx, clusterIdentityName)
 	if err != nil {
-		logger.Error(err, "Missing management cluster identity AWSClusterRoleIdentity CR")
-		return nil, errors.WithStack(err)
+		return nil, fmt.Errorf("missing management cluster identity AWSClusterRoleIdentity CR %s for cluster %s/%s: %w", clusterIdentityName, c.ManagementCluster.Namespace, c.ManagementCluster.Name, err)
 	}
 
 	roleArn, found, err := unstructured.NestedString(clusterIdentity.Object, "spec", "roleARN")
 	if err != nil {
-		logger.Error(err, "Role arn is not a string")
-		return nil, errors.WithStack(err)
+		return nil, fmt.Errorf("failed to get role ARN from AWSClusterRoleIdentity %s: %w", clusterIdentityName, err)
 	}
 	if !found {
-		return nil, errors.New("Missing role arn")
+		return nil, fmt.Errorf("missing role ARN in AWSClusterRoleIdentity %s for cluster %s/%s", clusterIdentityName, c.ManagementCluster.Namespace, c.ManagementCluster.Name)
 	}
 
 	clusterTags, found, err := unstructured.NestedStringMap(cluster.Object, "spec", "additionalTags")
 	if err != nil {
-		logger.Error(err, "Additional tags are not a map")
-		return nil, errors.WithStack(err)
+		return nil, fmt.Errorf("failed to get additional tags from AWSCluster %s/%s: %w", c.ManagementCluster.Namespace, c.ManagementCluster.Name, err)
 	}
 	if !found || len(clusterTags) == 0 {
 		logger.Info("No cluster tags found")
@@ -91,7 +86,10 @@ func (c AWSClusterGetter) getClusterCR(ctx context.Context) (*unstructured.Unstr
 		Version: VersionCluster,
 	})
 	err := c.Client.Get(ctx, c.ManagementCluster.ToObjectKey(c.ManagementCluster.Name, c.ManagementCluster.Namespace), cluster)
-	return cluster, errors.WithStack(err)
+	if err != nil {
+		return cluster, fmt.Errorf("failed to get AWSCluster CR %s/%s: %w", c.ManagementCluster.Namespace, c.ManagementCluster.Name, err)
+	}
+	return cluster, nil
 }
 
 func (c AWSClusterGetter) getClusterCRIdentiy(ctx context.Context, clusterIdentityName string) (*unstructured.Unstructured, error) {
@@ -103,7 +101,10 @@ func (c AWSClusterGetter) getClusterCRIdentiy(ctx context.Context, clusterIdenti
 	})
 
 	err := c.Client.Get(ctx, c.ManagementCluster.ToObjectKey(clusterIdentityName, c.ManagementCluster.Namespace), clusterIdentity)
-	return clusterIdentity, errors.WithStack(err)
+	if err != nil {
+		return clusterIdentity, fmt.Errorf("failed to get AWSClusterRoleIdentity CR %s/%s: %w", c.ManagementCluster.Namespace, clusterIdentityName, err)
+	}
+	return clusterIdentity, nil
 }
 
 // AWSCluster implements Cluster Interface with AWS data
