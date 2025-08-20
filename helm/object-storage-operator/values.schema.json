@@ -60,6 +60,17 @@
         "managementCluster": {
             "type": "object",
             "properties": {
+                "azure": {
+                    "type": "object",
+                    "properties": {
+                        "clientId": {
+                            "type": "string"
+                        },
+                        "useAzureWorkloadIdentities": {
+                            "type": "boolean"
+                        }
+                    }
+                },
                 "baseDomain": {
                     "type": "string"
                 },
@@ -79,9 +90,6 @@
                 },
                 "region": {
                     "type": "string"
-                },
-                "useAzureWorkloadIdentities": {
-                    "type": "boolean"
                 }
             }
         },

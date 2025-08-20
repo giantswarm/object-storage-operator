@@ -19,6 +19,9 @@ spec:
         releaseRevision: {{ .Release.Revision | quote }}
       labels:
         {{- include "labels.common" . | nindent 8 }}
+        {{- if and (eq .Values.managementCluster.provider.kind "capz") .Values.managementCluster.azure.useAzureWorkloadIdentities }}
+        azure.workload.identity/use: "true"
+        {{- end }}
     spec:
       serviceAccountName: {{ include "resource.default.name"  . }}
       securityContext:
@@ -41,7 +44,7 @@ spec:
         env:
           - name: AWS_SHARED_CREDENTIALS_FILE
             value: /home/.aws/credentials
-        {{ else if and (eq .Values.managementCluster.provider.kind "capz") .Values.managementCluster.useAzureWorkloadIdentities }}
+        {{ else if and (eq .Values.managementCluster.provider.kind "capz") .Values.managementCluster.azure.useAzureWorkloadIdentities }}
         env:
           - name: AZURE_FEDERATED_TOKEN_FILE
             value: /var/run/secrets/azure/tokens/azure-identity-token
@@ -69,7 +72,7 @@ spec:
         volumeMounts:
           - mountPath: /home/.aws
             name: credentials
-        {{ else if and (eq .Values.managementCluster.provider.kind "capz") .Values.managementCluster.useAzureWorkloadIdentities -}}
+        {{ else if and (eq .Values.managementCluster.provider.kind "capz") .Values.managementCluster.azure.useAzureWorkloadIdentities -}}
         volumeMounts:
           - mountPath: /var/run/secrets/azure/tokens
             name: azure-identity-token
@@ -83,7 +86,7 @@ spec:
       - name: credentials
         secret:
           secretName: {{ include "resource.default.name" . }}-aws-credentials
-      {{ else if and (eq .Values.managementCluster.provider.kind "capz") .Values.managementCluster.useAzureWorkloadIdentities -}}
+      {{ else if and (eq .Values.managementCluster.provider.kind "capz") .Values.managementCluster.azure.useAzureWorkloadIdentities -}}
       volumes:
       - name: azure-identity-token
         projected:
