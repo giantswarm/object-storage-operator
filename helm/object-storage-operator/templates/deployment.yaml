@@ -78,7 +78,7 @@ spec:
             name: azure-identity-token
             readOnly: true
         {{- end }}
-      {{ if eq .Values.managementCluster.provider.kind "capz" -}}
+      {{ if and (eq .Values.managementCluster.provider.kind "capz") (not .Values.managementCluster.azure.useAzureWorkloadIdentities) -}}
       hostNetwork: true
       {{- end }}
       {{ if eq .Values.managementCluster.provider.kind "capa" -}}
