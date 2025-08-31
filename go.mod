@@ -22,7 +22,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.11.3
 	github.com/mrz1836/go-sanitize v1.5.2
-	github.com/onsi/ginkgo/v2 v2.25.1
+	github.com/onsi/ginkgo/v2 v2.25.2
 	github.com/onsi/gomega v1.38.2
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.34.0
