@@ -1,6 +1,6 @@
-{{- if .Capabilities.APIVersions.Has "kyverno.io/v2beta1/PolicyException" }}
+{{- if .Capabilities.APIVersions.Has "kyverno.io/v2/PolicyException" }}
 {{- if eq .Values.managementCluster.provider.kind "capz" }}
-apiVersion: kyverno.io/v2beta1
+apiVersion: kyverno.io/v2
 kind: PolicyException
 metadata:
   annotations:
