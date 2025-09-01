@@ -14,8 +14,12 @@ managementCluster:
   provider:
     kind: unknown
   region: unknown
-  # The following is only used for CAPZ when using Azure Workload Identities
-  useAzureWorkloadIdentities: false
+  # Azure Workload Identity configuration
+  azure:
+    # The following is only used for CAPZ when using Azure Workload Identities
+    useAzureWorkloadIdentities: false
+    # The client ID of the Azure AD application/managed identity
+    clientId: ""
 
 podSecurityContext:
   runAsNonRoot: true
