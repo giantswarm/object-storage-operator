@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Add `azure.workload.identity/client-id` and `azure.workload.identity/use` labels to service account and deployment resources templates in helm.
 - Update Kyverno PolicyExceptions to v2.
 
 ## [0.12.0] - 2025-06-26
