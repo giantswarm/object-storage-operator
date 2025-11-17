@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Update `trustIdentityPolicy` in the AWS templates to add `plugin-barman-cloud` service account.
+
 ## [0.13.0] - 2025-09-29
 
 ### Changed
