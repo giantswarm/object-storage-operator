@@ -17,7 +17,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/iam v1.52.1
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.92.0
 	github.com/aws/aws-sdk-go-v2/service/sts v1.41.1
-	github.com/aws/smithy-go v1.23.2
+	github.com/aws/smithy-go v1.24.0
 	github.com/go-logr/logr v1.4.3
 	github.com/google/go-cmp v0.7.0
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.12.0
