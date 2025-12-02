@@ -2,7 +2,7 @@ module github.com/giantswarm/object-storage-operator
 
 go 1.24.0
 
-toolchain go1.25.4
+toolchain go1.25.5
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.20.0
