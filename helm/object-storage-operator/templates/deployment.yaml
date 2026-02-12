@@ -30,7 +30,7 @@ spec:
         {{- end }}
       containers:
       - name: {{ include "name" . }}
-        image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ default .Chart.Version .Values.image.tag }}"
+        image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}"
         args:
           - --leader-elect
           - --metrics-bind-address=:{{ default 14000 .Values.metricsPort }}
