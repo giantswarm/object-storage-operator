@@ -147,14 +147,6 @@ func (s AzureObjectStorageAdapter) CreateBucket(ctx context.Context, bucket *v1a
 	}
 
 	if isPrivateManagementCluster {
-		if _, err := s.upsertPrivateZone(ctx, bucket); err != nil {
-			return fmt.Errorf("failed to upsert private zone for bucket %s: %w", bucket.Spec.Name, err)
-		}
-
-		if _, err := s.upsertVirtualNetworkLink(ctx, bucket); err != nil {
-			return fmt.Errorf("failed to upsert virtual network link for bucket %s: %w", bucket.Spec.Name, err)
-		}
-
 		privateEndpoint, err := s.upsertPrivateEndpoint(ctx, bucket, storageAccountName)
 		if err != nil {
 			return fmt.Errorf("failed to upsert private endpoint for bucket %s in storage account %s: %w", bucket.Spec.Name, storageAccountName, err)
