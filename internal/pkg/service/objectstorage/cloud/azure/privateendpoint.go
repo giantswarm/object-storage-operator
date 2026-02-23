@@ -98,61 +98,6 @@ func (s AzureObjectStorageAdapter) upsertPrivateEndpoint(ctx context.Context, bu
 	return &resp.PrivateEndpoint, nil
 }
 
-func (s AzureObjectStorageAdapter) upsertPrivateZone(ctx context.Context, bucket *v1alpha1.Bucket) (*armprivatedns.PrivateZone, error) {
-	pollersResp, err := s.privateZonesClient.BeginCreateOrUpdate(
-		ctx,
-		s.cluster.GetResourceGroup(),
-		privateZoneID,
-		armprivatedns.PrivateZone{
-			// Private Zone DNS is a global resource
-			Location: to.Ptr("Global"),
-			Tags:     s.getBucketTags(bucket),
-		},
-		nil,
-	)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := pollersResp.PollUntilDone(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	return &resp.PrivateZone, nil
-}
-
-func (s AzureObjectStorageAdapter) upsertVirtualNetworkLink(ctx context.Context, bucket *v1alpha1.Bucket) (*armprivatedns.VirtualNetworkLink, error) {
-	pollersResp, err := s.virtualNetworkLinksClient.BeginCreateOrUpdate(
-		ctx,
-		s.cluster.GetResourceGroup(),
-		privateZoneID,
-		"giantswarm-observability",
-		armprivatedns.VirtualNetworkLink{
-			// Private Zone DNS is a global resource
-			Location: to.Ptr("Global"),
-			Properties: &armprivatedns.VirtualNetworkLinkProperties{
-				RegistrationEnabled: to.Ptr(false),
-				VirtualNetwork: &armprivatedns.SubResource{
-					ID: to.Ptr(s.vnetID()),
-				},
-			},
-			Tags: s.getBucketTags(bucket),
-		},
-		nil,
-	)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := pollersResp.PollUntilDone(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	return &resp.VirtualNetworkLink, nil
-}
-
-func (s AzureObjectStorageAdapter) vnetID() string {
-	return fmt.Sprintf(vnetID, s.cluster.GetSubscriptionID(), s.cluster.GetResourceGroup(), s.cluster.GetVNetName())
-}
-
 func (s AzureObjectStorageAdapter) subnetID() string {
 	return fmt.Sprintf(subnetID, s.cluster.GetSubscriptionID(), s.cluster.GetResourceGroup(), s.cluster.GetVNetName(), "node-subnet")
 }
